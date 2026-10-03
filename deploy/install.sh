@@ -11,6 +11,8 @@ changed() { ! cmp -s "$1" "$2"; }
 rm -rf "$SITE.new" && mkdir -p "$SITE.new"
 cp -R "$SRC/index.html" "$SRC/css" "$SRC/js" "$SITE.new/"
 printf '{"commit":"%s","dirty":false,"builtAt":"%s"}\n' "${SHA:0:7}" "$(date -u +%FT%TZ)" > "$SITE.new/version.json"
+# load css/js through a per-commit URL prefix (nginx maps /v/<commit>/x to /x) so browsers never run stale code
+sed -i -e "s#href=\"css/app.css\"#href=\"v/${SHA:0:7}/css/app.css\"#" -e "s#src=\"js/app.js\"#src=\"v/${SHA:0:7}/js/app.js\"#" "$SITE.new/index.html"
 chmod -R a+rX,go-w "$SITE.new"
 rm -rf "$SITE.old"; if [ -d "$SITE" ]; then mv "$SITE" "$SITE.old"; fi
 mv "$SITE.new" "$SITE"
@@ -38,14 +40,16 @@ if changed "$SRC/deploy/nginx-jazz.conf" /etc/nginx/sites-available/jazz; then
   rm -f /etc/nginx/sites-enabled/default
   if ! nginx -t 2>/dev/null; then
     echo "nginx config invalid; keeping the previous one" >&2
-    cp /etc/nginx/sites-available/jazz.prev /etc/nginx/sites-available/jazz; exit 1
+    cp /etc/nginx/sites-available/jazz.prev /etc/nginx/sites-available/jazz
+    if [ -d "$SITE.old" ]; then rm -rf "$SITE" && mv "$SITE.old" "$SITE"; fi
+    exit 1
   fi
   systemctl reload nginx
 fi
 
 # 5. health check; put the previous site back if it fails
 sleep 1
-if curl -fsS -o /dev/null http://127.0.0.1:8080/ && curl -fsS -o /dev/null "http://127.0.0.1:8080/api/feedback/status?ids="; then
+if curl -fsS -o /dev/null http://127.0.0.1:8080/ && curl -fsS -o /dev/null "http://127.0.0.1:8080/v/${SHA:0:7}/js/app.js" && curl -fsS -o /dev/null "http://127.0.0.1:8080/api/feedback/status?ids="; then
   rm -rf "$SITE.old"; echo "installed ${SHA:0:7}"
 else
   echo "health check failed; restoring the previous site" >&2
