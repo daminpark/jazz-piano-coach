@@ -1,0 +1,9 @@
+# feedback notes/screenshots pulled from the server or written by serve.py
+feedback/
+__pycache__/
+*.pyc
+.DS_Store
+.claude/
+node_modules/
+version.json
+deploy/local.env

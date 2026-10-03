@@ -1,0 +1,73 @@
+// Music theory: spelled notes, chords and scales in any key. Pure functions, no DOM.
+export const LETTERS = ['C', 'D', 'E', 'F', 'G', 'A', 'B'];
+const LETTER_PC = { C: 0, D: 2, E: 4, F: 5, G: 7, A: 9, B: 11 };
+const ACC = { '-2': '𝄫', '-1': '♭', 0: '', 1: '♯', 2: '𝄪' };
+const ACC_ASCII = { '-2': 'bb', '-1': 'b', 0: '', 1: '#', 2: '##' };
+
+/** "Eb" / "F#" / "Bbb" -> {letter, acc} */
+export function parseNote(s) {
+  const m = s.match(/^([A-G])(bb|b|##|#|x|♭|♯)?$/);
+  if (!m) throw new Error('bad note ' + s);
+  const acc = { bb: -2, b: -1, '♭': -1, '#': 1, '♯': 1, '##': 2, x: 2 }[m[2] || ''] ?? 0;
+  return { letter: m[1], acc };
+}
+export const pcOf = n => (((LETTER_PC[n.letter] + n.acc) % 12) + 12) % 12;
+export const noteLabel = n => n.letter + ACC[n.acc];
+export const noteAscii = n => n.letter + ACC_ASCII[n.acc];
+export const midiName = m => ['C', 'C♯', 'D', 'E♭', 'E', 'F', 'F♯', 'G', 'A♭', 'A', 'B♭', 'B'][m % 12] + (Math.floor(m / 12) - 1);
+
+/** spell a note `semis` above `root`, `steps` letters above it (e.g. a major 3rd = 4 semis, 2 letters) */
+export function spellAbove(root, semis, steps) {
+  const li = (LETTERS.indexOf(root.letter) + steps) % 7;
+  const letter = LETTERS[li];
+  let acc = ((pcOf(root) + semis - LETTER_PC[letter]) % 12 + 12) % 12;
+  if (acc > 6) acc -= 12;
+  return { letter, acc };
+}
+
+// chord qualities: semitones + letter steps from the root, and how they're written
+export const QUALITIES = {
+  maj7: { name: 'major seventh', semis: [0, 4, 7, 11], steps: [0, 2, 4, 6], sym: 'maj7' },
+  7: { name: 'dominant seventh', semis: [0, 4, 7, 10], steps: [0, 2, 4, 6], sym: '7' },
+  m7: { name: 'minor seventh', semis: [0, 3, 7, 10], steps: [0, 2, 4, 6], sym: 'm7' },
+  m7b5: { name: 'half-diminished', semis: [0, 3, 6, 10], steps: [0, 2, 4, 6], sym: 'm7♭5' },
+  dim7: { name: 'diminished seventh', semis: [0, 3, 6, 9], steps: [0, 2, 4, 6], sym: '°7' },
+  6: { name: 'major sixth', semis: [0, 4, 7, 9], steps: [0, 2, 4, 5], sym: '6' },
+  m6: { name: 'minor sixth', semis: [0, 3, 7, 9], steps: [0, 2, 4, 5], sym: 'm6' },
+};
+
+// roots as commonly written in lead sheets, per quality
+const ROOTS_FLAT = ['C', 'Db', 'D', 'Eb', 'E', 'F', 'F#', 'G', 'Ab', 'A', 'Bb', 'B'];
+const ROOTS_MINOR = ['C', 'C#', 'D', 'Eb', 'E', 'F', 'F#', 'G', 'G#', 'A', 'Bb', 'B'];
+export const rootsFor = q => (q === 'm7' || q === 'm6' || q === 'm7b5' ? ROOTS_MINOR : ROOTS_FLAT).map(parseNote);
+
+export function chord(rootName, quality) {
+  const root = typeof rootName === 'string' ? parseNote(rootName) : rootName;
+  const Q = QUALITIES[quality];
+  const notes = Q.semis.map((s, i) => spellAbove(root, s, Q.steps[i]));
+  return {
+    id: `${noteAscii(root)}${quality}`, root, quality, notes,
+    pcs: notes.map(pcOf), symbol: noteLabel(root) + Q.sym, rootLabel: noteLabel(root), qualityLabel: Q.sym,
+  };
+}
+
+/** all 12 roots × the given qualities */
+export const deck = qualities => qualities.flatMap(q => rootsFor(q).map(r => chord(r, q)));
+
+// keys in the order jazz musicians usually cycle them (around the circle of fourths)
+export const KEYS_FOURTHS = ['C', 'F', 'Bb', 'Eb', 'Ab', 'Db', 'Gb', 'B', 'E', 'A', 'D', 'G'];
+
+/** major scale of a key, spelled */
+export function majorScale(keyName) {
+  const root = parseNote(keyName);
+  return [0, 2, 4, 5, 7, 9, 11].map((s, i) => spellAbove(root, s, i));
+}
+
+/** does a set of held MIDI notes spell exactly this chord's pitch classes (any octave/inversion)? */
+export function matchesChord(heldMidis, ch, { rootPosition = false } = {}) {
+  if (!heldMidis.length) return false;
+  const pcs = new Set(heldMidis.map(m => m % 12));
+  if (pcs.size !== ch.pcs.length || ch.pcs.some(p => !pcs.has(p))) return false;
+  if (rootPosition) return Math.min(...heldMidis) % 12 === ch.pcs[0];
+  return true;
+}

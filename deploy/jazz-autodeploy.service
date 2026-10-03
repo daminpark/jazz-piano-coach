@@ -1,0 +1,11 @@
+# /etc/systemd/system/jazz-autodeploy.service  (app container)
+[Unit]
+Description=Deploy the Jazz piano coach from GitHub if main has moved
+After=network-online.target
+Wants=network-online.target
+
+[Service]
+Type=oneshot
+EnvironmentFile=-/etc/default/jazz-autodeploy
+ExecStart=/usr/local/sbin/jazz-autodeploy
+TimeoutStartSec=300

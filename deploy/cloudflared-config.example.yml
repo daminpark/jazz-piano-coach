@@ -1,0 +1,11 @@
+# /etc/cloudflared/config.yml  (app container) — fill in your tunnel id and hostname
+#   cloudflared tunnel create jazz-piano        (on a machine logged in with `cloudflared tunnel login`)
+#   cloudflared tunnel route dns jazz-piano <hostname>
+# then copy ~/.cloudflared/<TUNNEL_ID>.json to /etc/cloudflared/ in the container (owner cloudflared, mode 600)
+tunnel: <TUNNEL_ID>
+credentials-file: /etc/cloudflared/<TUNNEL_ID>.json
+no-autoupdate: true
+ingress:
+  - hostname: <HOSTNAME>
+    service: http://127.0.0.1:8080
+  - service: http_status:404

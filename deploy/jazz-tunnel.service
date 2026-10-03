@@ -1,0 +1,25 @@
+# /etc/systemd/system/jazz-tunnel.service  (app container)
+[Unit]
+Description=Cloudflare Tunnel for the Jazz piano coach
+After=network-online.target nginx.service
+Wants=network-online.target
+
+[Service]
+Type=simple
+User=cloudflared
+Group=cloudflared
+ExecStart=/usr/bin/cloudflared --no-autoupdate --config /etc/cloudflared/config.yml tunnel run
+Restart=always
+RestartSec=5
+NoNewPrivileges=true
+PrivateTmp=true
+ProtectSystem=strict
+ProtectHome=true
+ProtectKernelTunables=true
+ProtectKernelModules=true
+ProtectControlGroups=true
+RestrictSUIDSGID=true
+LockPersonality=true
+
+[Install]
+WantedBy=multi-user.target
