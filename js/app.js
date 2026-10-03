@@ -8,6 +8,7 @@ import { Keyboard, noteName } from './keyboard.js';
 import { UNITS, BOOK, TRACKS, allDays, dayAt, gateStatus, minutesOf, cardTime, coordPassed } from './curriculum.js';
 import { DRILLS, USES_KEYS } from './drills/index.js';
 import { FOCUS } from './drills/drone.js';
+import { LESSONS } from './content/index.js';
 import { deck, KEYS_FOURTHS, noteLabel, parseNote } from './theory.js';
 import { initFeedback } from './feedback.js';
 
@@ -41,18 +42,18 @@ function markStep(n, i, result) {
 function describe(st) {
   const len = { 8: '2 bars', 4: '1 bar', 2: '2 beats', 1: '1 beat' };
   switch (st.drill) {
-    case 'read': return { title: `Read pp. ${st.pages}`, sub: 'In the book' };
+    case 'lesson': return { title: LESSONS[st.lesson].title, sub: 'Lesson' };
     case 'drone': return { title: 'Drone improvisation', sub: (st.focus || []).map(f => FOCUS[f].title).join(' · ') };
     case 'chords': return { title: st.label || 'Chord flash cards', sub: `${st.count} cards · ${st.qualities.map(q => (q === '7' ? 'dom7' : q)).join(', ')}${st.test ? ' · timed test' : ''}` };
     case 'spell': return { title: 'Spell the chords', sub: `${st.count} chords, written` };
     case 'vamp': return { title: 'Vamp', sub: `4 chords, ${len[st.beatsPerChord]} each · ♩ = ${st.tempo}` };
     case 'coord': return { title: `Coordination Exercise 1, part ${st.part}`, sub: `${st.keys === 'unpassed' ? 'keys not yet passed' : st.keys.map(k => noteLabel(parseNote(k))).join(', ')} · from ♩ = ${st.tempo}` };
-    case 'swing': return { title: 'Swing check', sub: `Swing Exercise${st.exercises === 'any' ? 's' : ` ${st.exercises}`} (p. 13) · ♩ = ${st.tempo}` };
+    case 'swing': return { title: 'Swing check', sub: `${Array.isArray(st.exercises) ? `Swing Exercise${st.exercises.length > 1 ? 's' : ''} ${st.exercises.join(' and ')}` : 'any swing exercise'} · ♩ = ${st.tempo}` };
     case 'listen': return { title: `Listen: ${TRACKS[st.track].title}`, sub: st.quiz ? 'follow the form + quiz' : 'follow the form' };
     default: return { title: st.drill, sub: '' };
   }
 }
-const ICON = { read: '📖', drone: '〰', chords: '♯', spell: '✎', vamp: '↻', coord: '⇅', swing: '♪', listen: '🎧' };
+const ICON = { lesson: '📖', drone: '〰', chords: '♯', spell: '✎', vamp: '↻', coord: '⇅', swing: '♪', listen: '🎧' };
 
 // ---------------- keyboard + MIDI ----------------
 const kb = new Keyboard($('#kbWrap'), { onPress: (m, v) => midi.virtual('noteon', m, v), onRelease: m => midi.virtual('noteoff', m) });
@@ -86,7 +87,8 @@ function mountPractice() {
   const parts = location.hash.split('/');
   if (S.inst) { S.inst.destroy(); S.inst = null; }
   kb.setTargets([]); kb.clearPressed();
-  if (parts[1] === 'free') { S.n = S.i = null; S.free = parts[2]; S.cfg = FREE[S.free]?.cfg; }
+  if (parts[1] === 'free') { S.n = S.i = null; S.free = parts[2]; S.cfg = S.free.startsWith('lesson:') ? { drill: 'lesson', min: 5, lesson: S.free.slice(7) } : FREE[S.free]?.cfg; }
+  if (S.cfg && S.cfg.drill === 'lesson' && !LESSONS[S.cfg.lesson]) S.cfg = null;
   else if (parts[1]) { S.n = +parts[1]; S.i = +parts[2] || 0; S.free = null; S.cfg = dayAt(S.n, P()).steps[S.i]; }
   else { S.n = S.i = S.free = S.cfg = null; }
   S.sec = 0; S.doneNow = false;
@@ -136,14 +138,16 @@ const FREE = {
   spell: { cfg: { drill: 'spell', min: 5, qualities: ALL3, count: 12 }, about: 'write the notes of 12 chords' },
   coord1: { cfg: { drill: 'coord', min: 8, keys: KEYS_FOURTHS, part: 1, tempo: 80 }, about: 'part 1, triplets, any key' },
   coord2: { cfg: { drill: 'coord', min: 8, keys: KEYS_FOURTHS, part: 2, tempo: 100 }, about: 'part 2, swung eighths, any key' },
-  swing: { cfg: { drill: 'swing', min: 5, exercises: 'any', tempo: 100 }, about: 'Swing Exercises A–E, measured' },
+  swing: { cfg: { drill: 'swing', min: 5, exercises: 'any', tempo: 100 }, about: 'Swing Exercises A–E or free play, measured' },
   vamp: { cfg: { drill: 'vamp', min: 6, qualities: ALL3, beatsPerChord: 4, tempo: 100 }, about: 'comp 4 chords over bass and drums' },
   drone: { cfg: { drill: 'drone', min: 5, focus: ['listen', 'phrases', 'rhythm'] }, about: 'improvise over a low fifth' },
   freddie: { cfg: { drill: 'listen', min: 10, track: 'freddie', quiz: false }, about: 'follow the form, take the quiz' },
 };
 function renderFreeMenu(el) {
-  render(el, html`<div class="free-grid">${Object.entries(FREE).map(([k, f]) => html`
-    <a class="card free" href="#practice/free/${k}"><span class="ficon">${ICON[f.cfg.drill]}</span><b>${f.cfg.label || DRILLS[f.cfg.drill].title}${k.startsWith('coord') ? `, part ${f.cfg.part}` : ''}</b><span class="muted small">${f.about}</span></a>`)}</div>`);
+  render(el, html`<h3 class="menu-h">Drills</h3><div class="free-grid">${Object.entries(FREE).map(([k, f]) => html`
+    <a class="card free" href="#practice/free/${k}"><span class="ficon">${ICON[f.cfg.drill]}</span><b>${f.cfg.label || DRILLS[f.cfg.drill].title}${k.startsWith('coord') ? `, part ${f.cfg.part}` : ''}</b><span class="muted small">${f.about}</span></a>`)}</div>
+    <h3 class="menu-h">Lessons</h3>
+    <ol class="lesson-list">${Object.entries(LESSONS).map(([id, l]) => html`<li><a href="#practice/free/lesson:${id}">${l.title}</a>${P().lessons?.[id] ? html` <span class="ok small">✓</span>` : ''}</li>`)}</ol>`);
 }
 
 // time on task: counts while practising (page visible, played or clicked in the last 2 minutes)
@@ -207,9 +211,9 @@ function gateList(gates) {
 function renderPath() {
   const days = allDays(), cur = P().day;
   render($('#view-path'), html`
-    <div class="page-head"><h1>The path</h1><p class="muted">Following <i>${BOOK}</i>. About 30 minutes a day; each unit ends with gates that test you’re ready to move on. New units get added a few days at a time.</p></div>
+    <div class="page-head"><h1>The path</h1><p class="muted">About 30 minutes a day: a short lesson, then drills that listen to your piano. Each unit ends with gates that test you’re ready to move on. New units get added a few days at a time.</p></div>
     ${UNITS.map(u => html`<div class="card unit">
-      <div class="unit-head"><span class="unum">${u.id}</span><div><h2>${u.title}</h2><span class="muted">pp. ${u.pages} · ${u.about}</span></div></div>
+      <div class="unit-head"><span class="unum">${u.id}</span><div><h2>${u.title}</h2><span class="muted">${u.about}</span></div></div>
       <ol class="day-list">${days.filter(d => d.unit === u).map(d => { const done = P().days[d.index]?.done; return html`
         <li class="${done ? 'done' : ''} ${d.index === cur ? 'cur' : ''}"><a href="#practice/${d.index}/0">
           <span class="dnum">${done ? '✓' : d.index}</span><span><b>${d.title}</b><span class="muted small"> ${d.steps.map(s => describe(s).title).join(' · ')}</span></span>
@@ -218,7 +222,7 @@ function renderPath() {
       </ol>
       <h3>Gates</h3>${gateList(gateStatus(u, P()))}
     </div>`)}
-    ${UPCOMING.map(([id, title, page]) => html`<div class="card unit later"><div class="unit-head"><span class="unum">${id}</span><div><h2>${title}</h2><span class="muted">from p. ${page} · not built yet</span></div></div></div>`)}`);
+    ${UPCOMING.map(([id, title, page]) => html`<div class="card unit later"><div class="unit-head"><span class="unum">${id}</span><div><h2>${title}</h2><span class="muted">coming soon</span></div></div></div>`)}`);
 }
 
 // ---------------- Progress ----------------
@@ -280,8 +284,8 @@ function renderSettings() {
         <p class="muted small">Current day: ${P().day} · <button class="btn ghost small" data-a="back">Go back a day</button> <button class="btn ghost small" data-a="skip">Skip ahead a day</button></p>
       </div>
       <div class="card"><h3>About</h3>
-        <p class="muted small">A personal practice companion for <i>${BOOK}</i>. It doesn’t reproduce the book. Read each unit there, then use these drills to practise and test.
-          Exercises are generated (scales, chords, patterns); the recordings are on your streaming service.</p>
+        <p class="muted small">A self-contained daily jazz piano course. Topics follow the order of <i>${BOOK}</i>; the lessons and exercises are written for this app.
+          Recordings for the listening steps are on your streaming service.</p>
       </div>
     </div>`);
   const v = $('#view-settings');

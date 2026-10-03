@@ -1,6 +1,5 @@
-// The study path: units follow Jeremy Siskind's "Jazz Piano Fundamentals, Book 1" (page numbers refer to it).
-// The app doesn't reproduce the book: read it alongside, and use the drills here to practise and test.
-// Each unit has ~30-minute days and gates (tests) that show when you're ready to move on.
+// The study path, in the order of Jeremy Siskind's "Jazz Piano Fundamentals, Book 1". Each unit has ~30-minute
+// days (a lesson written for this app, then drills) and gates: tests that show when you're ready to move on.
 import { deck, KEYS_FOURTHS } from './theory.js';
 
 export const BOOK = 'Jazz Piano Fundamentals, Book 1 (Jeremy Siskind, 2021)';
@@ -11,7 +10,7 @@ export const coordPassed = (P, key, part = 2) => !!(P.keys.coord1 && P.keys.coor
 
 export const TRACKS = {
   freddie: {
-    title: 'Freddie Freeloader', artist: 'Miles Davis', album: 'Kind of Blue (1959)', bookPages: '20–21', bpm: 128,
+    title: 'Freddie Freeloader', artist: 'Miles Davis', album: 'Kind of Blue (1959)', bpm: 128,
     personnel: ['Miles Davis, trumpet', 'John Coltrane, tenor sax', 'Cannonball Adderley, alto sax', 'Wynton Kelly, piano', 'Paul Chambers, bass', 'Jimmy Cobb, drums'],
     // a 12-bar blues in B♭ (the solos use the first ending)
     form: ['B♭7', 'B♭7', 'B♭7', 'B♭7', 'E♭7', 'E♭7', 'B♭7', 'B♭7', 'F7', 'E♭7', 'A♭7', 'A♭7'],
@@ -39,7 +38,7 @@ const step = (drill, min, cfg = {}) => ({ drill, min, ...cfg });
 
 export const UNITS = [
   {
-    id: 1, title: 'Getting Oriented', pages: '9–22',
+    id: 1, title: 'Getting Oriented',
     about: 'Drone improvisation, the basics of swing feel, chord symbols, and the three essential seventh chords. First guided listening: Miles Davis, “Freddie Freeloader”.',
     gates: [
       { id: 'cards', label: 'Find all 36 seventh chords (maj7, 7, m7) in under 3 seconds each',
@@ -50,63 +49,70 @@ export const UNITS = [
         progress: P => ({ done: (P.swing || []).some(s => s.passed) ? 1 : 0, of: 1 }) },
       { id: 'drone', label: 'Five drone improvisation sessions',
         progress: P => ({ done: Math.min(5, P.drone || 0), of: 5 }) },
-      { id: 'listen', label: '“Freddie Freeloader”: form quiz passed (and keep listening, the book suggests 20 times)',
+      { id: 'listen', label: '“Freddie Freeloader”: form quiz passed (and keep listening: aim for 20 times)',
         progress: P => ({ done: P.quizzes.freddie && P.quizzes.freddie.passed ? 1 : 0, of: 1 }) },
     ],
     days: [
       { title: 'Getting oriented', steps: [
-        step('read', 10, { pages: '3–19', what: 'Introduction, “Using this Book”, the Principles, then Unit 1: drone improvisation, swing feel, chord symbols and the three essential chord types.' }),
+        step('lesson', 10, { lesson: 'u1-welcome' }),
         step('drone', 5, { focus: ['listen'] }),
         step('chords', 7, { qualities: ['maj7'], count: 12, label: 'Major seventh chords' }),
         step('listen', 8, { track: 'freddie', note: 'First listen: just follow the form with the bar counter. Count the choruses.' }),
       ] },
       { title: 'Swing feel', steps: [
-        step('drone', 5, { focus: ['phrases'] }),
-        step('coord', 8, { keys: ['C', 'F'], part: 1, tempo: 80, note: 'Part 1: the repeated-note triplets (p. 12). Lean on the third partial.' }),
-        step('chords', 7, { qualities: ['maj7', '7'], count: 20, label: 'Major and dominant sevenths' }),
-        step('swing', 5, { exercises: 'A and B', tempo: 100 }),
-        step('listen', 5, { track: 'freddie' }),
+        step('lesson', 6, { lesson: 'u1-swing' }),
+        step('drone', 4, { focus: ['phrases'] }),
+        step('coord', 7, { keys: ['C', 'F'], part: 1, tempo: 80, note: 'Part 1: the repeated-note triplets. Lean on the third note of each group.' }),
+        step('chords', 5, { qualities: ['maj7', '7'], count: 16, label: 'Major and dominant sevenths' }),
+        step('swing', 4, { exercises: ['A', 'B'], tempo: 100 }),
+        step('listen', 4, { track: 'freddie' }),
       ] },
       { title: 'Swung eighths', steps: [
-        step('drone', 5, { focus: ['rhythm'] }),
+        step('lesson', 5, { lesson: 'u1-minor' }),
+        step('drone', 4, { focus: ['rhythm'] }),
         step('coord', 8, { keys: ['C', 'F', 'Bb'], part: 2, tempo: 90, note: 'Part 2: drop the repeated note and keep hearing it. Swung eighths.' }),
-        step('chords', 7, { qualities: ['m7'], count: 12, label: 'Minor seventh chords' }),
-        step('swing', 5, { exercises: 'C and D', tempo: 100 }),
-        step('listen', 5, { track: 'freddie' }),
+        step('chords', 5, { qualities: ['m7'], count: 12, label: 'Minor seventh chords' }),
+        step('swing', 4, { exercises: ['C', 'D'], tempo: 100 }),
+        step('listen', 4, { track: 'freddie' }),
       ] },
       { title: 'All 36 chords', steps: [
-        step('drone', 5, { focus: ['listen', 'phrases', 'rhythm'] }),
-        step('coord', 8, { keys: ['Eb', 'Ab'], part: 2, tempo: 90 }),
-        step('spell', 5, { qualities: ALL3, count: 12, note: 'The app’s version of the written practice on p. 18: spell each chord correctly (E♯ is not F!).' }),
-        step('chords', 7, { qualities: ALL3, count: 24 }),
-        step('listen', 5, { track: 'freddie' }),
+        step('lesson', 5, { lesson: 'u1-spelling' }),
+        step('drone', 4, { focus: ['listen', 'phrases', 'rhythm'] }),
+        step('coord', 7, { keys: ['Eb', 'Ab'], part: 2, tempo: 90 }),
+        step('spell', 5, { qualities: ALL3, count: 12, note: 'Spell each chord with the right letter names (E♯ is not F!).' }),
+        step('chords', 5, { qualities: ALL3, count: 20 }),
+        step('listen', 4, { track: 'freddie' }),
       ] },
       { title: 'Vamp pieces', steps: [
-        step('drone', 5, { focus: ['listen', 'phrases', 'rhythm'] }),
-        step('coord', 8, { keys: ['Db', 'Gb'], part: 2, tempo: 95 }),
-        step('chords', 6, { qualities: ALL3, count: 24 }),
-        step('vamp', 6, { qualities: ALL3, beatsPerChord: 8, tempo: 100, note: 'Four chords, two bars each, over bass and drums (p. 18).' }),
-        step('listen', 5, { track: 'freddie' }),
+        step('lesson', 5, { lesson: 'u1-vamp' }),
+        step('drone', 4, { focus: ['listen', 'phrases', 'rhythm'] }),
+        step('coord', 7, { keys: ['Db', 'Gb'], part: 2, tempo: 95 }),
+        step('chords', 4, { qualities: ALL3, count: 16 }),
+        step('vamp', 6, { qualities: ALL3, beatsPerChord: 8, tempo: 100, note: 'Four chords, two bars each, over bass and drums.' }),
+        step('listen', 4, { track: 'freddie' }),
       ] },
-      { title: 'Faster changes', steps: [
-        step('drone', 5, { focus: ['phrases', 'rhythm'] }),
-        step('coord', 8, { keys: ['B', 'E'], part: 2, tempo: 100 }),
-        step('chords', 6, { qualities: ALL3, count: 24, slowestFirst: true, label: 'Your slowest chords first' }),
-        step('vamp', 6, { qualities: ALL3, beatsPerChord: 4, tempo: 100, note: 'One bar per chord now.' }),
-        step('swing', 5, { exercises: 'E', tempo: 110 }),
+      { title: 'The blues form', steps: [
+        step('lesson', 5, { lesson: 'u1-form' }),
+        step('drone', 4, { focus: ['phrases', 'rhythm'] }),
+        step('coord', 7, { keys: ['B', 'E'], part: 2, tempo: 100 }),
+        step('chords', 4, { qualities: ALL3, count: 16, slowestFirst: true, label: 'Your slowest chords first' }),
+        step('vamp', 5, { qualities: ALL3, beatsPerChord: 4, tempo: 100, note: 'One bar per chord now.' }),
+        step('swing', 5, { exercises: ['E'], tempo: 110 }),
       ] },
       { title: 'All twelve keys', steps: [
-        step('drone', 5, { focus: ['listen', 'phrases', 'rhythm'] }),
+        step('lesson', 5, { lesson: 'u1-listening' }),
+        step('drone', 4, { focus: ['listen', 'phrases', 'rhythm'] }),
         step('coord', 8, { keys: ['A', 'D', 'G'], part: 2, tempo: 100 }),
-        step('chords', 6, { qualities: ALL3, count: 24, slowestFirst: true }),
-        step('vamp', 6, { qualities: ALL3, beatsPerChord: 2, tempo: 100, note: 'Two beats per chord: find them fast.' }),
-        step('listen', 5, { track: 'freddie', quiz: true }),
+        step('chords', 4, { qualities: ALL3, count: 16, slowestFirst: true }),
+        step('vamp', 5, { qualities: ALL3, beatsPerChord: 2, tempo: 100, note: 'Two beats per chord: find them fast.' }),
+        step('listen', 4, { track: 'freddie', quiz: true }),
       ] },
       { title: 'Unit 1 check', check: true, steps: [
-        step('chords', 8, { qualities: ALL3, count: 36, test: true, label: 'All 36 chords, timed' }),
-        step('coord', 12, { keys: 'unpassed', part: 2, tempo: 100, note: 'Every key that hasn’t passed yet (all 12 count toward the gate).' }),
+        step('lesson', 3, { lesson: 'u1-review' }),
+        step('chords', 7, { qualities: ALL3, count: 36, test: true, label: 'All 36 chords, timed' }),
+        step('coord', 11, { keys: 'unpassed', part: 2, tempo: 100, note: 'Every key that hasn’t passed yet (all 12 count toward the gate).' }),
         step('swing', 5, { exercises: 'any', tempo: 110 }),
-        step('listen', 5, { track: 'freddie', quiz: true }),
+        step('listen', 4, { track: 'freddie', quiz: true }),
       ] },
     ],
   },

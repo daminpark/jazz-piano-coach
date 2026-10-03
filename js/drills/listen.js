@@ -55,7 +55,7 @@ export const listen = {
       render(el, html`
         <div class="card drill-card listen">
           <div class="l-head">
-            <div><h3>${T.title}</h3><div class="muted">${T.artist} · ${T.album} · book pp. ${T.bookPages}</div></div>
+            <div><h3>${T.title}</h3><div class="muted">${T.artist} · ${T.album}</div></div>
             <div class="l-count"><b>${n}</b><span>of 20 listens</span></div>
           </div>
           <div class="l-links muted small">Open it in:

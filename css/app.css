@@ -318,3 +318,33 @@ table.keys td.ok { background: color-mix(in srgb, var(--ok) 26%, var(--card-2));
   .fb-panel, .fb-list { right: 8px; left: 8px; bottom: 60px; width: auto; }
   .fb-bar .fb-keys { display: none; }
 }
+
+/* lessons */
+.lesson { max-width: 820px; font-size: 16px; line-height: 1.6; }
+.lesson h3 { margin: 22px 0 6px; font-size: 22px; color: var(--accent-2); }
+.lesson-title { font-size: 30px; margin-bottom: 6px; }
+.lesson p { margin: 8px 0; } .lesson ul { padding-left: 22px; margin: 8px 0; } .lesson li { margin: 5px 0; }
+.lesson b { color: var(--ink); }
+.tip { margin: 12px 0; padding: 10px 14px; border-left: 3px solid var(--accent); background: color-mix(in srgb, var(--accent) 9%, var(--card-2)); border-radius: 0 10px 10px 0; font-size: 15px; }
+.tbl-wrap { overflow-x: auto; margin: 10px 0; }
+.ltable { border-collapse: collapse; font-size: 15px; min-width: 60%; }
+.ltable th, .ltable td { text-align: left; padding: 6px 12px; border-bottom: 1px solid var(--line); }
+.ltable th { color: var(--ink-faint); font-weight: 600; font-size: 13px; }
+.abc-fig, .kfig { margin: 12px 0; padding: 10px 12px; background: var(--paper, #fbf8f1); border-radius: 12px; color: #1b1712; }
+.abc-fig figcaption, .kfig figcaption { display: flex; gap: 8px; align-items: center; flex-wrap: wrap; margin-top: 6px; font-size: 14px; color: #4a4036; }
+.abc-fig .btn, .kfig .btn { color: #1b1712; background: #efe7d8; border-color: #d9ccb4; }
+.abc-fig .btn.primary { background: var(--accent); border-color: var(--accent); color: #1a1206; }
+.abc-host svg { max-width: 100%; height: auto; }
+.abc-host { color: #1b1712; }
+.mini-kb { width: min(100%, 440px); height: auto; display: block; }
+.mk-w { fill: #fff; stroke: #9a9083; stroke-width: .8; } .mk-b { fill: #1d1915; }
+.mk-w.on { fill: var(--accent); } .mk-b.on { fill: #b97d1f; }
+.mk-t { font: 700 9px var(--sans); text-anchor: middle; fill: #1a1206; pointer-events: none; } .mk-t.light { fill: #fff; font-size: 7.5px; }
+.try { display: flex; gap: 8px; align-items: center; flex-wrap: wrap; margin: 12px 0; padding: 10px 14px; border-radius: 12px; background: var(--card-2); border: 1px dashed var(--line-2); }
+.try-chip { padding: 4px 12px; border-radius: 999px; background: var(--bg-2); font-weight: 700; border: 1px solid var(--line-2); }
+.try-chip.ok { background: color-mix(in srgb, var(--ok) 28%, var(--card-2)); border-color: var(--ok); }
+.done-check { margin-top: 18px; padding-top: 14px; border-top: 1px solid var(--line); width: 100%; }
+.swing-abc { background: #fbf8f1; border-radius: 10px; padding: 6px; color: #1b1712; margin: 8px 0; }
+.menu-h { margin: 18px 0 10px; } .menu-h:first-child { margin-top: 0; }
+.lesson-list { padding-left: 22px; } .lesson-list li { margin: 6px 0; }
+.abc-fig b, .kfig b, .abc-fig i, .kfig i { color: #1b1712; }

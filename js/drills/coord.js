@@ -1,4 +1,4 @@
-// Coordination Exercise 1 (book p. 12) in any key: a two-octave major scale over left-hand quarter notes.
+// Coordination Exercise 1 in any key: a two-octave major scale over left-hand quarter notes.
 // Part 1 repeats every other note as triplets; part 2 drops the repeated note, which leaves swung eighths.
 // A take is checked note by note, then for swing placement, offbeat accent and legato.
 import { html, render } from '../html.js';

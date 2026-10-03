@@ -1,4 +1,4 @@
-// Drone improvisation (book p. 10): a low open fifth in the left hand, free improvisation in the right,
+// Drone improvisation: a low open fifth in the left hand, free improvisation in the right,
 // one focus at a time. The app times the session and reflects back what you played: phrases, space, rhythm, notes outside the key.
 import { html, render } from '../html.js';
 import { majorScale, noteLabel, parseNote, pcOf } from '../theory.js';
