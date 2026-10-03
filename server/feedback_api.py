@@ -10,7 +10,7 @@ Storage (CLAIR_FEEDBACK_DIR, default ./feedback):
   records/<id>.jpg    screenshot of the picked area (optional)
   status/<id>.json    written when a note is resolved (tools/feedback.py resolve)
 
-Run standalone:  CLAIR_FEEDBACK_DIR=/var/lib/clair-feedback PORT=8090 python3 feedback_api.py
+Run standalone:  CLAIR_FEEDBACK_DIR=/var/lib/jazz-feedback PORT=8090 python3 feedback_api.py
 serve.py imports api_route() so local development gets the same endpoints.
 """
 import base64, json, os, re, uuid

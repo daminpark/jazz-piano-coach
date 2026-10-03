@@ -62,7 +62,7 @@ def open_browser():
 
 socketserver.ThreadingTCPServer.allow_reuse_address = True
 with socketserver.ThreadingTCPServer(("127.0.0.1", PORT), Handler) as httpd:
-    print(f"Clair de Lune coach running at http://localhost:{PORT}/  (Ctrl+C to stop)")
+    print(f"Jazz piano coach running at http://localhost:{PORT}/  (Ctrl+C to stop)")
     threading.Timer(0.6, open_browser).start()
     try:
         httpd.serve_forever()
