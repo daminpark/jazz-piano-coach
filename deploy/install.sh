@@ -47,9 +47,11 @@ if changed "$SRC/deploy/nginx-jazz.conf" /etc/nginx/sites-available/jazz; then
   systemctl reload nginx
 fi
 
-# 5. health check; put the previous site back if it fails
-sleep 1
-if curl -fsS -o /dev/null http://127.0.0.1:8080/ && curl -fsS -o /dev/null "http://127.0.0.1:8080/v/${SHA:0:7}/js/app.js" && curl -fsS -o /dev/null "http://127.0.0.1:8080/api/feedback/status?ids="; then
+# 5. health check (the feedback API takes a moment to come back up); put the previous site back if it fails
+healthy() { curl -fsS -o /dev/null http://127.0.0.1:8080/ && curl -fsS -o /dev/null "http://127.0.0.1:8080/v/${SHA:0:7}/js/app.js" && curl -fsS -o /dev/null "http://127.0.0.1:8080/api/feedback/status?ids="; }
+ok=false
+for _ in $(seq 1 15); do sleep 1; if healthy 2>/dev/null; then ok=true; break; fi; done
+if $ok; then
   rm -rf "$SITE.old"; echo "installed ${SHA:0:7}"
 else
   echo "health check failed; restoring the previous site" >&2
