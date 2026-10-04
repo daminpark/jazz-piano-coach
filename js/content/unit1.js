@@ -7,7 +7,7 @@ export const UNIT1_LESSONS = {
     title: 'How this course works, the drone, and your first chord',
     blocks: [
       { h: 'How the days work' },
-      { p: 'Each day is about 30 minutes: a short lesson, then a handful of drills covering the four things a jazz pianist practises: **time and feel**, **harmony**, **improvising** and **listening**. The drills listen to your piano over MIDI, so you get an honest score instead of a hunch.' },
+      { p: 'Each day is about 30 minutes: a short lesson, then a handful of drills covering what a jazz pianist practises: **technique**, **time and feel**, **harmony**, **improvising** and **listening**. The drills listen to your piano over MIDI, so you get an honest score instead of a hunch.' },
       { p: 'Every unit ends with **gates**: concrete tests such as “find all 36 chords in under 3 seconds”. Pass them and you’re ready for the next unit. If you don’t pass yet, you get catch-up days aimed at whatever is missing.' },
       { h: 'Five habits that make practice work' },
       { list: [

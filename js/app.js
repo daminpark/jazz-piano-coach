@@ -9,6 +9,7 @@ import { UNITS, BOOK, TRACKS, allDays, dayAt, gateStatus, minutesOf, cardTime, c
 import { DRILLS, USES_KEYS } from './drills/index.js';
 import { FOCUS } from './drills/drone.js';
 import { LESSONS } from './content/index.js';
+import { TECH, setLabel } from './drills/technique.js';
 import { deck, KEYS_FOURTHS, noteLabel, parseNote } from './theory.js';
 import { initFeedback } from './feedback.js';
 
@@ -43,7 +44,8 @@ function describe(st) {
   const len = { 8: '2 bars', 4: '1 bar', 2: '2 beats', 1: '1 beat' };
   switch (st.drill) {
     case 'lesson': return { title: LESSONS[st.lesson].title, sub: 'Lesson' };
-    case 'drone': return { title: 'Drone improvisation', sub: (st.focus || []).map(f => FOCUS[f].title).join(' · ') };
+    case 'drone': return { title: 'Drone improvisation', sub: `guided ideas: ${(st.focus || []).map(f => FOCUS[f].title.toLowerCase()).join(', ')}` };
+    case 'technique': return { title: TECH[st.ex].title, sub: `${st.qualities.length > 1 ? 'maj7, 7 and m7' : st.qualities[0] === '7' ? 'dominant 7' : st.qualities[0]} · from ♩ = ${st.tempo}` };
     case 'chords': return { title: st.label || 'Chord flash cards', sub: `${st.count} cards · ${st.qualities.map(q => (q === '7' ? 'dom7' : q)).join(', ')}${st.test ? ' · timed test' : ''}` };
     case 'spell': return { title: 'Spell the chords', sub: `${st.count} chords, written` };
     case 'vamp': return { title: 'Vamp', sub: `4 chords, ${len[st.beatsPerChord]} each · ♩ = ${st.tempo}` };
@@ -53,7 +55,7 @@ function describe(st) {
     default: return { title: st.drill, sub: '' };
   }
 }
-const ICON = { lesson: '📖', drone: '〰', chords: '♯', spell: '✎', vamp: '↻', coord: '⇅', swing: '♪', listen: '🎧' };
+const ICON = { lesson: '📖', technique: '⚙', drone: '〰', chords: '♯', spell: '✎', vamp: '↻', coord: '⇅', swing: '♪', listen: '🎧' };
 
 // ---------------- keyboard + MIDI ----------------
 const kb = new Keyboard($('#kbWrap'), { onPress: (m, v) => midi.virtual('noteon', m, v), onRelease: m => midi.virtual('noteoff', m) });
@@ -105,7 +107,8 @@ function mountPractice() {
   S.inst = def.mount(ctx);
 }
 function renderPracticeHead() {
-  const head = $('#pHead');
+  const head = $('#pHead'), foot = $('#pFoot');
+  render(foot, '');
   if (!S.cfg) { render(head, html`<div class="p-title"><h2>Practice</h2><span class="muted">Pick any drill. Your daily plan is on <a href="#today">Today</a>.</span></div>`); return; }
   const d = describe(S.cfg);
   if (S.free) {
@@ -126,8 +129,14 @@ function renderPracticeHead() {
       ${last ? html`<a class="btn ${done ? 'primary' : ''}" href="#today">Finish day</a>` : html`<a class="btn ${done ? 'primary' : ''}" href="#practice/${S.n}/${S.i + 1}">Next step →</a>`}
     </div>
     ${S.cfg.note && !['coord', 'vamp', 'listen'].includes(S.cfg.drill) ? html`<p class="p-note">${S.cfg.note}</p>` : ''}`);
-  const mk = head.querySelector('[data-a=mark]');
-  if (mk) mk.onclick = () => { markStep(S.n, S.i, { manual: true }); renderPracticeHead(); };
+  // the same controls again under the drill, so you don't have to scroll back up
+  render(foot, html`<div class="p-foot-row">
+    <span class="muted small">Step ${S.i + 1} of ${day.steps.length}${S.i + 1 < day.steps.length ? html` · next: ${describe(day.steps[S.i + 1]).title}` : ''}</span>
+    <span class="grow"></span>
+    ${done ? html`<span class="ok small">${S.doneNow ? 'Step complete!' : 'Done'}</span>` : html`<button class="btn ghost small" data-a="mark">Mark done</button>`}
+    ${last ? html`<a class="btn ${done ? 'primary' : ''}" href="#today">Finish day</a>` : html`<a class="btn ${done ? 'primary' : ''}" href="#practice/${S.n}/${S.i + 1}">Next step →</a>`}
+  </div>`);
+  for (const mk of document.querySelectorAll('#pHead [data-a=mark], #pFoot [data-a=mark]')) mk.onclick = () => { markStep(S.n, S.i, { manual: true }); renderPracticeHead(); };
 }
 const clock = s => `${Math.floor(s / 60)}:${String(Math.floor(s % 60)).padStart(2, '0')}`;
 
@@ -136,6 +145,9 @@ const FREE = {
   slow: { cfg: { drill: 'chords', min: 6, qualities: ALL3, count: 20, slowestFirst: true, label: 'Your slowest chords' }, about: 'the 20 chords you find slowest' },
   test: { cfg: { drill: 'chords', min: 8, qualities: ALL3, count: 36, test: true, label: 'Chord test, timed' }, about: 'all 36, with the gate grid' },
   spell: { cfg: { drill: 'spell', min: 5, qualities: ALL3, count: 12 }, about: 'write the notes of 12 chords' },
+  arp: { cfg: { drill: 'technique', min: 6, ex: 'arp', qualities: ALL3, tempo: 80, label: 'Seventh-chord arpeggios' }, about: 'maj7, 7 and m7 on each root, swung' },
+  p1235: { cfg: { drill: 'technique', min: 5, ex: 'p1235', qualities: ['7'], tempo: 90, label: '1-2-3-5 patterns' }, about: 'the 1-2-3-5 shape through all keys' },
+  inv: { cfg: { drill: 'technique', min: 5, ex: 'inv', qualities: ['m7'], tempo: 80, label: 'Inversions' }, about: 'block chords up and down the inversions' },
   coord1: { cfg: { drill: 'coord', min: 8, keys: KEYS_FOURTHS, part: 1, tempo: 80 }, about: 'part 1, triplets, any key' },
   coord2: { cfg: { drill: 'coord', min: 8, keys: KEYS_FOURTHS, part: 2, tempo: 100 }, about: 'part 2, swung eighths, any key' },
   swing: { cfg: { drill: 'swing', min: 5, exercises: 'any', tempo: 100 }, about: 'Swing Exercises A–E or free play, measured' },
@@ -246,6 +258,8 @@ function renderProgress() {
         <tr><th>Part 1</th>${KEYS_FOURTHS.map(k => coordCell(k, 1))}</tr>
         <tr><th>Part 2</th>${KEYS_FOURTHS.map(k => coordCell(k, 2))}</tr></table>
       <p class="muted small">${KEYS_FOURTHS.filter(k => coordPassed(p, k, 2)).length} of 12 keys passed</p></div>
+    <div class="card"><h3>Technique <span class="muted small">✓ = a clean take</span></h3>
+      ${Object.keys(p.keys.tech || {}).length ? Object.entries(p.keys.tech).map(([key, sets]) => { const [ex, q] = key.split(':'); const qs = q.split(','); return html`<div class="crow"><span class="cq wide">${TECH[ex].title}, ${qs.length > 1 ? 'mixed' : qs[0] === '7' ? 'dom7' : qs[0]}</span>${Object.entries(sets).map(([k, st]) => html`<span class="cg ${st.clean ? 'ok' : 'mid'}" title="best ${Math.round((st.best?.accuracy || 0) * 100)}% at ♩ ${st.best?.bpm || '–'}">${setLabel(ex, qs, +k)}<small>${st.clean ? '✓' : `${Math.round((st.best?.accuracy || 0) * 100)}%`} ♩${st.best?.bpm || ''}</small></span>`)}</div>`; }) : html`<p class="muted">No technique takes yet.</p>`}</div>
     <div class="card"><h3>Swing checks</h3>
       ${(p.swing || []).length ? html`<div class="swing-hist">${p.swing.slice(-16).map(s => html`<div class="sh ${s.passed ? 'ok' : ''}" title="♩ ${s.bpm} · accent ${Math.round((s.accent - 1) * 100)}%"><i style="bottom:${Math.round(s.placement * 100)}%"></i><span>${Math.round(s.placement * 100)}</span></div>`)}</div>
         <p class="muted small">Where your offbeats land (% of the beat). The band is the swing zone around 67%.</p>` : html`<p class="muted">No swing checks yet.</p>`}</div>

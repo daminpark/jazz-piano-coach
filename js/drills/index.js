@@ -7,6 +7,7 @@ import { vamp } from './vamp.js';
 import { coord } from './coord.js';
 import { swing } from './swing.js';
 import { listen } from './listen.js';
+import { technique } from './technique.js';
 
-export const DRILLS = { lesson, drone, chords, spell, vamp, coord, swing, listen };
-export const USES_KEYS = new Set(['lesson', 'drone', 'chords', 'vamp', 'coord', 'swing']);
+export const DRILLS = { lesson, drone, technique, chords, spell, vamp, coord, swing, listen };
+export const USES_KEYS = new Set(['lesson', 'drone', 'technique', 'chords', 'vamp', 'coord', 'swing']);

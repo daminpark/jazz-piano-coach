@@ -1,45 +1,104 @@
-// Guided listening: play the track in your music app, start the follower at the same moment,
-// and watch who's soloing, which chorus it is, and where you are in the 12-bar form. Then a short quiz.
+// Guided listening: the track plays inside the app (YouTube, or your own audio file), and the follower shows
+// who's soloing, which chorus it is and which bar of the form you're in, in sync with the music. Then a short quiz.
+/* global YT */
 import { html, render } from '../html.js';
 import { TRACKS } from '../curriculum.js';
 
-const fmt = s => `${Math.floor(s / 60)}:${String(Math.floor(Math.max(0, s) % 60)).padStart(2, '0')}`;
+const fmt = s => `${Math.floor(Math.max(0, s) / 60)}:${String(Math.floor(Math.max(0, s) % 60)).padStart(2, '0')}`;
+
+// ---- YouTube IFrame API, loaded once ----
+let ytReady = null;
+function loadYouTube() {
+  if (ytReady) return ytReady;
+  ytReady = new Promise((res, rej) => {
+    if (window.YT && YT.Player) return res(YT);
+    const prev = window.onYouTubeIframeAPIReady;
+    window.onYouTubeIframeAPIReady = () => { if (prev) prev(); res(YT); };
+    const s = document.createElement('script'); s.src = 'https://www.youtube.com/iframe_api'; s.onerror = () => rej(new Error('YouTube could not load'));
+    document.head.appendChild(s);
+  });
+  return ytReady;
+}
+
+// ---- your own audio file, kept in this browser (IndexedDB) ----
+const DB = 'jazz-piano-files';
+function idb(mode, fn) {
+  return new Promise((res, rej) => {
+    const open = indexedDB.open(DB, 1);
+    open.onupgradeneeded = () => open.result.createObjectStore('files');
+    open.onerror = () => rej(open.error);
+    open.onsuccess = () => {
+      const tx = open.result.transaction('files', mode); const req = fn(tx.objectStore('files'));
+      tx.oncomplete = () => res(req && req.result); tx.onerror = () => rej(tx.error);
+    };
+  });
+}
+const loadFile = id => idb('readonly', st => st.get(id)).catch(() => null);
+const saveFile = (id, blob) => idb('readwrite', st => st.put(blob, id));
+const dropFile = id => idb('readwrite', st => st.delete(id));
 
 export const listen = {
   title: 'Guided listening',
   mount(ctx) {
     const { el, cfg, store } = ctx;
-    const T = TRACKS[cfg.track || 'freddie'];
     const id = cfg.track || 'freddie';
-    const end = T.map[T.map.length - 1].to;
-    let t0 = null, offset = 0, timer = 0, paused = true, counted = false, quiz = cfg.quiz ? 'open' : null, answers = {};
-    const P = store.progress;
-    const now = () => (paused ? offset : offset + (performance.now() - t0) / 1000);
+    const T = TRACKS[id];
+    const end = T.length || T.map[T.map.length - 1].to;
+    const P = store.progress, S = store.settings;
+    const offsets = (S.listenOffset ||= {});
+    let source = S.listenSource || 'youtube';
+    let player = null, audioEl = null, fileUrl = null, timer = 0, manual = { t0: null, at: 0 };
+    let counted = false, heard = 0, lastT = null, quiz = cfg.quiz ? 'open' : null, answers = {}, ytError = null;
+    const task = cfg.note || T.tasks[(P.listens[id] || 0) % T.tasks.length];
+
+    // ---- one clock, whatever the source ----
+    function rawTime() {
+      if (source === 'youtube') return player && player.getCurrentTime ? player.getCurrentTime() : 0;
+      if (source === 'file') return audioEl ? audioEl.currentTime : 0;
+      return manual.t0 == null ? manual.at : manual.at + (performance.now() - manual.t0) / 1000;
+    }
+    const now = () => rawTime() + (offsets[id] || 0);
+    function playing() {
+      if (source === 'youtube') return !!(player && player.getPlayerState && player.getPlayerState() === 1);
+      if (source === 'file') return !!(audioEl && !audioEl.paused);
+      return manual.t0 != null;
+    }
+    function seek(t) {
+      const raw = Math.max(0, t - (offsets[id] || 0));
+      if (source === 'youtube' && player && player.seekTo) player.seekTo(raw, true);
+      else if (source === 'file' && audioEl) audioEl.currentTime = raw;
+      else { manual.at = raw; if (manual.t0 != null) manual.t0 = performance.now(); }
+      lastT = null; paint();
+    }
+    function toggle() {
+      if (source === 'youtube' && player && player.getPlayerState) { if (playing()) player.pauseVideo(); else player.playVideo(); }
+      else if (source === 'file' && audioEl) { if (audioEl.paused) audioEl.play(); else audioEl.pause(); }
+      else if (source === 'manual') { if (manual.t0 == null) manual.t0 = performance.now(); else { manual.at = rawTime(); manual.t0 = null; } drawControls(); }
+    }
 
     function where(t) {
-      const s = T.map.find(m => t >= m.from && t < m.to) || (t >= end ? T.map[T.map.length - 1] : T.map[0]);
+      const s = T.map.find(m => t >= m.from && t < m.to) || (t >= T.map[T.map.length - 1].to ? T.map[T.map.length - 1] : T.map[0]);
       const bars = s.choruses * 12, barSec = (s.to - s.from) / bars;
       const bar = Math.max(0, Math.min(bars - 1, Math.floor((t - s.from) / barSec)));
-      return { s, chorus: Math.floor(bar / 12) + 1, bar: bar % 12, barSec };
+      const beat = Math.floor(((t - s.from) / barSec - Math.floor((t - s.from) / barSec)) * 4);
+      return { s, chorus: Math.floor(bar / 12) + 1, bar: bar % 12, beat };
     }
-    function play() {
-      if (paused) { t0 = performance.now(); paused = false; timer = setInterval(paint, 100); }
-      else { offset = now(); paused = true; clearInterval(timer); }
-      draw();
-    }
-    function nudge(sec) { const t = Math.max(0, now() + sec); offset = t; t0 = performance.now(); paint(); }
     function paint() {
       const t = now();
-      if (t >= end && !paused) { offset = end; paused = true; clearInterval(timer); markListened(); draw(); return; }
-      if (!counted && t > end * 0.85) markListened();
+      // count real listening time (not seeking), so a listen means you heard most of the track
+      const r = rawTime();
+      if (playing() && lastT != null && r - lastT > 0 && r - lastT < 1.5) heard += r - lastT;
+      lastT = r;
+      if (!counted && heard > end * 0.8) markListened();
       const w = where(t);
       const set = (sel, v) => { const n = el.querySelector(sel); if (n) n.textContent = v; };
       set('.l-time', fmt(t));
       set('.l-who', `${w.s.label}${w.s.who !== 'band' ? ` · ${w.s.who}` : ''}`);
-      set('.l-chorus', `chorus ${w.chorus} of ${w.s.choruses}`);
-      el.querySelectorAll('.form-grid .bar').forEach((b, k) => b.classList.toggle('now', k === w.bar));
+      set('.l-chorus', `chorus ${w.chorus} of ${w.s.choruses} · bar ${w.bar + 1}`);
+      el.querySelectorAll('.form-grid .bar').forEach((b, k) => { b.classList.toggle('now', k === w.bar); b.dataset.beat = k === w.bar && playing() ? w.beat + 1 : ''; });
       el.querySelectorAll('.l-map li').forEach(li => li.classList.toggle('now', +li.dataset.from === w.s.from));
       const pr = el.querySelector('.l-prog i'); if (pr) pr.style.width = `${Math.min(100, (t / end) * 100)}%`;
+      set('.l-heard', `${Math.round((heard / end) * 100)}% heard`);
     }
     function markListened() {
       if (counted) return;
@@ -47,51 +106,103 @@ export const listen = {
       P.listens[id] = (P.listens[id] || 0) + 1; store.save();
       store.log({ drill: 'listen', track: id, n: P.listens[id] });
       if (!cfg.quiz) ctx.done({ listens: P.listens[id] });
-      draw();
+      const c = el.querySelector('.l-count b'); if (c) c.textContent = P.listens[id];
+      const b = el.querySelector('[data-a=heard]'); if (b) { b.textContent = '✓ Listen counted'; b.disabled = true; }
     }
+
+    // ---- players ----
+    async function mountPlayer() {
+      const box = el.querySelector('.l-player');
+      if (player && player.destroy) { try { player.destroy(); } catch { /* already gone */ } }
+      player = null; audioEl = null;
+      if (source === 'youtube') {
+        render(box, html`<div class="yt"><div id="yt-${id}"></div></div>`);
+        try {
+          await loadYouTube();
+          player = new YT.Player(`yt-${id}`, {
+            videoId: T.youtube, width: '100%', height: '100%',
+            playerVars: { playsinline: 1, rel: 0, modestbranding: 1 },
+            events: { onStateChange: e => { if (e.data === 0) markListenedIfMost(); drawControls(); }, onError: () => { ytError = 'This video can’t be played here. Try your own audio file instead.'; drawControls(); } },
+          });
+        } catch (e) { ytError = e.message; drawControls(); }
+      } else if (source === 'file') {
+        const blob = await loadFile(id);
+        if (fileUrl) URL.revokeObjectURL(fileUrl);
+        fileUrl = blob ? URL.createObjectURL(blob) : null;
+        render(box, html`<div class="l-file">
+          ${fileUrl ? html`<audio controls preload="auto" src="${fileUrl}"></audio>` : html`<p class="muted small">Choose an MP3 or other audio file of “${T.title}” (the album version, ${fmt(end)} long). It stays in this browser.</p>`}
+          <label class="btn small">${fileUrl ? 'Use a different file' : 'Choose audio file'}<input type="file" accept="audio/*" hidden></label>
+          ${fileUrl ? html`<button class="btn ghost small" data-a="forget">Forget file</button>` : ''}
+        </div>`);
+        audioEl = box.querySelector('audio');
+        if (audioEl) { audioEl.onplay = audioEl.onpause = drawControls; audioEl.onended = markListenedIfMost; }
+        box.querySelector('input[type=file]').onchange = async e => { const f = e.target.files[0]; if (!f) return; await saveFile(id, f); mountPlayer(); };
+        const fg = box.querySelector('[data-a=forget]'); if (fg) fg.onclick = async () => { await dropFile(id); mountPlayer(); };
+      } else {
+        render(box, html`<p class="muted small">Play the track in Spotify, Apple Music or any app (<a href="https://open.spotify.com/search/${encodeURIComponent(`${T.title} ${T.artist}`)}" target="_blank" rel="noopener">Spotify</a> · <a href="https://music.apple.com/search?term=${encodeURIComponent(`${T.title} ${T.artist}`)}" target="_blank" rel="noopener">Apple Music</a>), and press <b>Start timer</b> at the same moment. Use the sync buttons if the counter drifts.</p>`);
+      }
+      drawControls();
+    }
+    function markListenedIfMost() { if (heard > end * 0.6) markListened(); }
+    function drawControls() {
+      const c = el.querySelector('.l-controls'); if (!c) return;
+      render(c, html`
+        ${source === 'manual' ? html`<button class="btn primary" data-a="manual">${manual.t0 == null ? (manual.at ? 'Resume timer' : 'Start timer') : 'Pause timer'} <kbd>Space</kbd></button>` : html`<span class="muted small">${playing() ? 'Playing' : 'Press play'} · <kbd>Space</kbd> plays/pauses</span>`}
+        <span class="l-sync">Counter early/late? <button class="btn ghost small" data-o="-0.5">−½ s</button><button class="btn ghost small" data-o="0.5">+½ s</button>${offsets[id] ? html`<span class="muted small">${offsets[id] > 0 ? '+' : ''}${offsets[id]} s</span>` : ''}</span>
+        ${ytError && source === 'youtube' ? html`<span class="bad small">${ytError}</span>` : ''}`);
+      const m = c.querySelector('[data-a=manual]'); if (m) m.onclick = toggle;
+      c.querySelectorAll('[data-o]').forEach(b => { b.onclick = () => { offsets[id] = Math.round(((offsets[id] || 0) + +b.dataset.o) * 10) / 10; store.save(); drawControls(); paint(); }; });
+    }
+
     function draw() {
-      const t = now(), w = where(t), n = P.listens[id] || 0;
-      const q = P.quizzes[id];
+      const t = now(), w = where(t), n = P.listens[id] || 0, q = P.quizzes[id];
       render(el, html`
         <div class="card drill-card listen">
           <div class="l-head">
             <div><h3>${T.title}</h3><div class="muted">${T.artist} · ${T.album}</div></div>
             <div class="l-count"><b>${n}</b><span>of 20 listens</span></div>
           </div>
-          <div class="l-links muted small">Open it in:
-            <a href="https://open.spotify.com/search/${encodeURIComponent(`${T.title} ${T.artist}`)}" target="_blank" rel="noopener">Spotify</a> ·
-            <a href="https://music.apple.com/search?term=${encodeURIComponent(`${T.title} ${T.artist}`)}" target="_blank" rel="noopener">Apple Music</a> ·
-            <a href="https://www.youtube.com/results?search_query=${encodeURIComponent(`${T.title} ${T.artist} Kind of Blue`)}" target="_blank" rel="noopener">YouTube</a>
-            · then press Start here as the track begins.</div>
+          <ol class="howto">
+            <li>Press play on the music below. The bar counter follows it by itself.</li>
+            <li><b>This listen:</b> ${task}</li>
+            <li>A listen counts once you’ve heard most of the track (<span class="l-heard">0% heard</span>).${cfg.quiz ? ' Then take the form quiz.' : ''}</li>
+          </ol>
+          <div class="seg" role="tablist">${[['youtube', 'YouTube'], ['file', 'My audio file'], ['manual', 'Another app']].map(([k, l]) => html`<button class="${k === source ? 'on' : ''}" data-src="${k}">${l}</button>`)}</div>
+          <div class="l-player"></div>
+          <div class="row l-controls"></div>
           <div class="l-now">
             <span class="l-time">${fmt(t)}</span>
             <span class="l-who">${w.s.label}${w.s.who !== 'band' ? ` · ${w.s.who}` : ''}</span>
-            <span class="l-chorus muted">chorus ${w.chorus} of ${w.s.choruses}</span>
+            <span class="l-chorus muted">chorus ${w.chorus} of ${w.s.choruses} · bar ${w.bar + 1}</span>
           </div>
           <div class="l-prog"><i></i></div>
           <div class="form-grid">${T.form.map((c, k) => html`<div class="bar ${k === w.bar ? 'now' : ''}"><small>${k + 1}</small>${c}</div>`)}</div>
+          <p class="muted small">Click a section to jump there.</p>
+          <ol class="l-map">${T.map.map(m => html`<li data-from="${m.from}" class="${m === w.s ? 'now' : ''}" tabindex="0"><span>${fmt(m.from)}</span> ${m.label}${m.who !== 'band' ? ` (${m.who})` : ''} · ${m.choruses} choruses</li>`)}</ol>
           <div class="row">
-            <button class="btn primary" data-a="play">${paused ? (t > 0 ? 'Resume' : 'Start') : 'Pause'} <kbd>Space</kbd></button>
-            <button class="btn ghost" data-n="-5">−5 s</button><button class="btn ghost" data-n="-1">−1 s</button>
-            <button class="btn ghost" data-n="1">+1 s</button><button class="btn ghost" data-n="5">+5 s</button>
-            <button class="btn ghost" data-a="reset">Reset</button>
-            <button class="btn" data-a="heard">I listened to it all</button>
+            <button class="btn" data-a="heard" ${counted ? 'disabled' : ''}>${counted ? '✓ Listen counted' : 'I listened to it all'}</button>
             <button class="btn" data-a="quiz">Form quiz${q && q.passed ? ' ✓' : ''}</button>
           </div>
-          <p class="muted small">${cfg.note || 'Follow the 12-bar form: count the bars, feel where each chorus starts again. Listen for how the pianist comps behind the soloists.'}
-            Timings are approximate; nudge if the bar counter drifts.</p>
-          <ol class="l-map">${T.map.map(m => html`<li data-from="${m.from}" class="${m === w.s ? 'now' : ''}"><span>${fmt(m.from)}</span> ${m.label}${m.who !== 'band' ? ` (${m.who})` : ''} · ${m.choruses} choruses</li>`)}</ol>
           <p class="muted small">Personnel: ${T.personnel.join(', ')}.</p>
-          ${quiz ? quizBox() : ''}
+          <div class="quiz-slot"></div>
         </div>`);
-      el.querySelector('[data-a=play]').onclick = play;
-      el.querySelector('[data-a=reset]').onclick = () => { paused = true; clearInterval(timer); offset = 0; draw(); };
+      el.querySelectorAll('[data-src]').forEach(b => { b.onclick = () => { if (b.dataset.src === source) return; if (source === 'manual') { manual.at = rawTime(); manual.t0 = null; } source = b.dataset.src; S.listenSource = source; store.save(); lastT = null; draw(); }; });
+      el.querySelectorAll('.l-map li').forEach(li => { li.onclick = () => seek(+li.dataset.from + 0.05); li.onkeydown = e => { if (e.key === 'Enter') li.onclick(); }; });
       el.querySelector('[data-a=heard]').onclick = markListened;
-      el.querySelector('[data-a=quiz]').onclick = () => { quiz = quiz ? null : 'open'; answers = {}; draw(); };
-      el.querySelectorAll('[data-n]').forEach(b => { b.onclick = () => nudge(+b.dataset.n); });
-      const form = el.querySelector('.quiz');
-      if (form) { form.onchange = e => { answers[e.target.name] = +e.target.value; }; form.onsubmit = e => e.preventDefault(); }
-      const sub = el.querySelector('[data-a=submit]');
+      el.querySelector('[data-a=quiz]').onclick = () => { quiz = quiz ? null : 'open'; answers = {}; drawQuiz(); };
+      drawQuiz();
+      mountPlayer();
+    }
+    // the quiz has its own slot, so opening it doesn't interrupt the music
+    function drawQuiz() {
+      const slot = el.querySelector('.quiz-slot');
+      render(slot, quiz ? quizBox() : '');
+      const qb = el.querySelector('[data-a=quiz]'); if (qb) qb.textContent = `Form quiz${P.quizzes[id]?.passed ? ' ✓' : ''}`;
+      const form = slot.querySelector('.quiz');
+      if (!form) return;
+      form.onchange = e => { answers[e.target.name] = +e.target.value; };
+      form.onsubmit = e => e.preventDefault();
+      const sub = slot.querySelector('[data-a=submit]');
       if (sub) sub.onclick = () => {
         const score = T.quiz.filter((qq, k) => answers[k] === qq.ok).length;
         const passed = score >= T.quiz.length - 1;
@@ -99,7 +210,7 @@ export const listen = {
         store.save(); store.log({ drill: 'quiz', track: id, score, of: T.quiz.length });
         quiz = { score, passed };
         if (cfg.quiz) ctx.done({ score });
-        draw();
+        drawQuiz();
       };
     }
     function quizBox() {
@@ -111,6 +222,15 @@ export const listen = {
       </form>`;
     }
     draw();
-    return { onSpace: play, destroy() { clearInterval(timer); } };
+    timer = setInterval(paint, 100);
+    return {
+      onSpace: toggle,
+      destroy() {
+        clearInterval(timer);
+        if (player && player.destroy) { try { player.destroy(); } catch { /* already gone */ } }
+        if (audioEl) audioEl.pause();
+        if (fileUrl) URL.revokeObjectURL(fileUrl);
+      },
+    };
   },
 };
