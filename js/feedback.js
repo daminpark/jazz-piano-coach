@@ -57,7 +57,7 @@ export function initFeedback({ getContext, describeScorePoint, describeKey }) {
   // ---------- picking ----------
   const inUi = el => !!(el && el.closest && el.closest('.fb-ui'));
   function startPicking() {
-    lib().catch(() => {}); // load the screenshot library while you pick and write
+    lib().then(h2i => fontCSS(h2i)).catch(() => {}); // load the screenshot library and fonts while you pick and write
     closeList(); panel.hidden = true; mode = 'picking'; selected = null; hovered = null; stack = [];
     bar.hidden = false; document.documentElement.classList.add('fb-picking');
     fab.classList.add('on');
@@ -308,8 +308,9 @@ export function initFeedback({ getContext, describeScorePoint, describeKey }) {
       const top = Math.max(0, -rr.top), vis = Math.max(1, Math.min(rr.height - top, innerHeight - Math.max(0, rr.top)));
       const part = rr.height > vis + 2 ? { height: vis, style: { transform: `translateY(${-top}px)`, transformOrigin: 'top left' } } : { height: rr.height };
       const restore = inlineLiveState(root);
+      const css = await fontCSS(h2i); // the page's real fonts, so text wraps in the screenshot as it does on screen
       try {
-        canvas = await withTimeout(rasterize(h2i, root, { width: rr.width, skipFonts: true, backgroundColor: bg, filter: n => !(n.classList && n.classList.contains('fb-ui')), ...part }, ratio, bg), 8000);
+        canvas = await withTimeout(rasterize(h2i, root, { width: rr.width, ...(css ? { fontEmbedCSS: css } : { skipFonts: true }), backgroundColor: bg, filter: n => !(n.classList && n.classList.contains('fb-ui')), ...part }, ratio, bg), 8000);
       } finally { restore(); }
       origin = { x: rr.left, y: rr.top + (part.height ? top : 0) };
     }
@@ -322,6 +323,12 @@ export function initFeedback({ getContext, describeScorePoint, describeKey }) {
     }
     if (canvas.width > 1600) canvas = crop(canvas, 0, 0, canvas.width, canvas.height, 1600 / canvas.width);
     return canvas.toDataURL('image/jpeg', 0.82);
+  }
+  // web fonts as embeddable CSS, fetched once and reused (empty if that fails: then fallback fonts are used)
+  let fontCSSPromise = null;
+  function fontCSS(h2i) {
+    fontCSSPromise ||= withTimeout(h2i.getFontEmbedCSS(document.body), 8000).catch(e => { console.warn('screenshot fonts', e); return ''; });
+    return fontCSSPromise;
   }
   // html-to-image's toCanvas waits for the page to paint, which never happens in a background tab
   // (and sending now runs in the background), so draw its SVG onto a canvas ourselves
