@@ -348,3 +348,7 @@ table.keys td.ok { background: color-mix(in srgb, var(--ok) 26%, var(--card-2));
 .menu-h { margin: 18px 0 10px; } .menu-h:first-child { margin-top: 0; }
 .lesson-list { padding-left: 22px; } .lesson-list li { margin: 6px 0; }
 .abc-fig b, .kfig b, .abc-fig i, .kfig i { color: #1b1712; }
+.try { flex-direction: column; align-items: stretch; }
+.try-row { display: flex; gap: 8px; align-items: center; flex-wrap: wrap; }
+.try-hear b { color: var(--ink); letter-spacing: .02em; }
+.kfig figcaption b { white-space: nowrap; }

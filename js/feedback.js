@@ -57,6 +57,7 @@ export function initFeedback({ getContext, describeScorePoint, describeKey }) {
   // ---------- picking ----------
   const inUi = el => !!(el && el.closest && el.closest('.fb-ui'));
   function startPicking() {
+    lib().catch(() => {}); // load the screenshot library while you pick and write
     closeList(); panel.hidden = true; mode = 'picking'; selected = null; hovered = null; stack = [];
     bar.hidden = false; document.documentElement.classList.add('fb-picking');
     fab.classList.add('on');
@@ -233,13 +234,13 @@ export function initFeedback({ getContext, describeScorePoint, describeKey }) {
     let context = {};
     try { context = getContext ? getContext() : {}; } catch (e) { context = { error: String(e) }; }
     Object.assign(context, { version, url: location.href, viewport: { w: innerWidth, h: innerHeight, dpr: devicePixelRatio }, ua: navigator.userAgent, at: new Date().toISOString() });
+    // close the panel straight away; the screenshot and upload happen in the background
+    const target = selected, targetScore = selScore, wantShot = $('.fb-check input', panel).checked;
+    stopAll(); flash('Sending…');
     let screenshot = null;
-    if ($('.fb-check input', panel).checked) {
-      status.textContent = 'Taking screenshot…';
-      hl.hidden = true;
-      try { screenshot = await withTimeout(capture(selected), 12000); } catch (e) { console.warn('screenshot failed', e); context.screenshotError = String(e && e.message || e); }
+    if (wantShot) {
+      try { screenshot = await withTimeout(capture(target, targetScore), 12000); } catch (e) { console.warn('screenshot failed', e); context.screenshotError = String(e && e.message || e); }
     }
-    status.textContent = 'Sending…';
     const payload = { note, tags, element, context, screenshot };
     const entry = { localId: crypto.randomUUID ? crypto.randomUUID() : String(Date.now()), createdAt: new Date().toISOString(), note, tags, area: element.area, label: element.label };
     const list = load();
@@ -247,11 +248,11 @@ export function initFeedback({ getContext, describeScorePoint, describeKey }) {
       const id = await post(payload);
       entry.id = id; entry.state = 'open';
       list.push(entry); saveList(list);
-      stopAll(); flash('Thanks! Your note is saved.');
+      flash('Thanks! Your note is saved.');
     } catch (e) {
       entry.state = 'unsent'; entry.payload = screenshot && screenshot.length > 900000 ? { ...payload, screenshot: null } : payload;
       list.push(entry); saveList(list);
-      stopAll(); flash('Saved in this browser. It will be sent when the server is reachable.', true);
+      flash('Saved in this browser. It will be sent when the server is reachable.', true);
     }
   }
   async function post(payload) {
@@ -293,26 +294,27 @@ export function initFeedback({ getContext, describeScorePoint, describeKey }) {
     }
     return document.querySelector('.view.active') || document.body;
   }
-  async function capture(el) {
+  async function capture(el, sc) {
     const root = el.closest('#scoreWrap') ? document.querySelector('#scoreWrap') : captureRoot(el);
     const rr = root.getBoundingClientRect();
-    const ratio = Math.min(2, devicePixelRatio || 1) * (rr.height > 1600 ? 0.6 : 1);
+    // draw at the size we keep (at most 1600 px wide), not at full screen resolution
+    const ratio = Math.min(devicePixelRatio || 1, 1600 / Math.max(1, rr.width));
     let canvas, origin;
     if (root.id === 'scoreWrap') ({ canvas, origin } = await captureScore(root, ratio));
     else {
       const h2i = await lib();
       const bg = getComputedStyle(document.body).backgroundColor;
+      // only draw the part of the area that is on screen: tall pages are slow to draw and encode in full
+      const top = Math.max(0, -rr.top), vis = Math.max(1, Math.min(rr.height - top, innerHeight - Math.max(0, rr.top)));
+      const part = rr.height > vis + 2 ? { height: vis, style: { transform: `translateY(${-top}px)`, transformOrigin: 'top left' } } : { height: rr.height };
       const restore = inlineLiveState(root);
       try {
-        canvas = await withTimeout(h2i.toCanvas(root, { pixelRatio: ratio, skipFonts: true, backgroundColor: bg, filter: n => !(n.classList && n.classList.contains('fb-ui')) }), 8000);
+        canvas = await withTimeout(rasterize(h2i, root, { width: rr.width, skipFonts: true, backgroundColor: bg, filter: n => !(n.classList && n.classList.contains('fb-ui')), ...part }, ratio, bg), 8000);
       } finally { restore(); }
-      origin = { x: rr.left, y: rr.top };
-      // keep tall areas to what is on screen
-      const top = Math.max(0, -rr.top), vis = Math.min(rr.height - top, innerHeight);
-      if (rr.height > innerHeight * 1.3) canvas = crop(canvas, 0, top * ratio, canvas.width, vis * ratio), origin.y += top;
+      origin = { x: rr.left, y: rr.top + (part.height ? top : 0) };
     }
-    if (el !== root || selScore) {
-      const r = (selScore && scoreRect(selScore)) || visibleRect(el); const ctx = canvas.getContext('2d');
+    if (el !== root || sc) {
+      const r = (sc && scoreRect(sc)) || visibleRect(el); const ctx = canvas.getContext('2d');
       const x = (r.left - origin.x) * ratio, y = (r.top - origin.y) * ratio;
       ctx.fillStyle = 'rgba(255, 64, 112, 0.12)'; ctx.fillRect(x - 3 * ratio, y - 3 * ratio, r.width * ratio + 6 * ratio, r.height * ratio + 6 * ratio);
       ctx.strokeStyle = '#ff4070'; ctx.lineWidth = 3 * ratio;
@@ -320,6 +322,16 @@ export function initFeedback({ getContext, describeScorePoint, describeKey }) {
     }
     if (canvas.width > 1600) canvas = crop(canvas, 0, 0, canvas.width, canvas.height, 1600 / canvas.width);
     return canvas.toDataURL('image/jpeg', 0.82);
+  }
+  // html-to-image's toCanvas waits for the page to paint, which never happens in a background tab
+  // (and sending now runs in the background), so draw its SVG onto a canvas ourselves
+  async function rasterize(h2i, node, opts, ratio, bg) {
+    const svg = await h2i.toSvg(node, opts);
+    const img = await new Promise((res, rej) => { const i = new Image(); i.onload = () => res(i); i.onerror = () => rej(new Error('screenshot render failed')); i.src = svg; });
+    const c = document.createElement('canvas'); c.width = Math.round(opts.width * ratio); c.height = Math.round(opts.height * ratio);
+    const ctx = c.getContext('2d'); ctx.fillStyle = bg; ctx.fillRect(0, 0, c.width, c.height);
+    ctx.drawImage(img, 0, 0, c.width, c.height);
+    return c;
   }
   const withTimeout = (p, ms) => Promise.race([p, new Promise((_, rej) => setTimeout(() => rej(new Error('screenshot timed out')), ms))]);
   // html-to-image copies attributes, not live state: mirror checkbox state and CSS-driven SVG colours while capturing

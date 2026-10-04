@@ -23,6 +23,9 @@ export class MidiIn extends EventTarget {
     if (cmd === 0x90 && d2 > 0) { this.active.add(d1); this.emit('noteon', { midi: d1, vel: d2, time: e.timeStamp, source: inp.name }); }
     else if (cmd === 0x80 || (cmd === 0x90 && d2 === 0)) { this.active.delete(d1); this.emit('noteoff', { midi: d1, time: e.timeStamp }); }
     else if (cmd === 0xb0 && d1 === 64) this.emit('pedal', { on: d2 >= 64, time: e.timeStamp });
+    else if (cmd === 0xb0 && (d1 === 120 || d1 === 123)) { // all sound / all notes off: forget anything still marked as held
+      for (const m of [...this.active]) { this.active.delete(m); this.emit('noteoff', { midi: m, time: e.timeStamp }); }
+    }
   }
   /** inject notes from the on-screen keyboard or computer keys */
   virtual(type, midi, vel = 90) {

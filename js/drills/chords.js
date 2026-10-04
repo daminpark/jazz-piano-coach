@@ -1,7 +1,7 @@
 // Chord flash cards: a chord symbol appears, you play it (any octave, any inversion, one or two hands).
 // Timed from the card appearing to the moment the held notes are exactly that chord.
 import { html, render } from '../html.js';
-import { deck, matchesChord } from '../theory.js';
+import { deck, matchesChord, identify, heldNames } from '../theory.js';
 import { cardTime } from '../curriculum.js';
 
 const REVEAL_MS = 9000;
@@ -92,6 +92,13 @@ export const chords = {
       draw();
     }
 
+    function hearing() {
+      const held = [...ctx.held()];
+      if (!held.length || state === 'done') return `Wrong notes this card: ${wrong}`;
+      const name = identify(held);
+      return `Hearing: ${heldNames(held, cur()).join(' ')}${name ? ` (${name})` : ''} · wrong notes: ${wrong}`;
+    }
+    const paintHearing = () => { const n = el.querySelector('.hearing'); if (n) n.textContent = hearing(); };
     function draw() {
       if (state === 'done') {
         const timed = results.filter(r => r.ms != null);
@@ -125,7 +132,7 @@ export const chords = {
           <div class="flash-bar"><i style="width:${state === 'asking' ? 0 : 100}%"></i></div>
           <div class="row center"><button class="btn ghost" data-a="show" ${state !== 'asking' ? 'disabled' : ''}>Show me</button>
             <button class="btn ghost" data-a="skip">Skip</button></div>
-          <p class="muted small center">Wrong notes this card: ${wrong}</p>
+          <p class="muted small center hearing">${hearing()}</p>
         </div>`);
       el.querySelector('[data-a=show]').onclick = () => reveal(true);
       el.querySelector('[data-a=skip]').onclick = () => { if (state === 'asking') record(null, true); next(); };
@@ -136,10 +143,12 @@ export const chords = {
     next();
     return {
       noteOn(m) {
-        if (state === 'asking' && !cur().pcs.includes(m % 12)) { wrong++; kb.press(m, 'bad'); draw(); }
+        if (state === 'asking' && !cur().pcs.includes(m % 12)) { wrong++; kb.press(m, 'bad'); }
+        paintHearing();
         clearTimeout(matchTimer); matchTimer = setTimeout(check, 120); // let a rolled chord settle
       },
       noteOff() {
+        paintHearing();
         if (state === 'wait-release' && !ctx.held().size) {
           if (answered) next(); else begin();
         }

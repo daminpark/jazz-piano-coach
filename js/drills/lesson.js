@@ -1,7 +1,7 @@
 // A lesson: text, notation you can hear, keyboard diagrams, and "play it now" checks that listen to your piano.
 import { html, render } from '../html.js';
 import { audio, Scheduler, swingGroove } from '../audio.js';
-import { chord as mkChord, matchesChord, midiName } from '../theory.js';
+import { chord as mkChord, matchesChord, midiName, identify, heldNames, noteLabel } from '../theory.js';
 import { parseAbc, swingNotes, drawAbc } from '../lib/abc.js';
 import { LESSONS } from '../content/index.js';
 
@@ -68,7 +68,8 @@ export const lesson = {
             : html`<button class="btn small primary" data-play="${i}">▶ Play</button>`;
         return html`<figure class="abc-fig"><div class="abc-host" data-abc="${i}"></div><figcaption>${btns}<span>${b.caption ? fmt(b.caption) : ''}</span></figcaption></figure>`;
       }
-      if (b.try) return html`<div class="try"><b>Play it now:</b> ${b.try.chords.map((_, k) => { const t = tries.find(x => x.id === `${i}:${k}`); return html`<span class="try-chip ${t.done ? 'ok' : ''}" data-try="${t.id}">${t.done ? '✓ ' : ''}${t.chord.symbol}</span>`; })}<span class="muted small">any inversion</span></div>`;
+      if (b.try) return html`<div class="try" data-block="${i}"><div class="try-row"><b>Play it now:</b> ${b.try.chords.map((_, k) => { const t = tries.find(x => x.id === `${i}:${k}`); return html`<span class="try-chip ${t.done ? 'ok' : ''}" data-try="${t.id}">${t.done ? '✓ ' : ''}${t.chord.symbol}</span>`; })}<span class="muted small">any inversion</span></div>
+        <div class="try-hear muted small">Play one of these chords and hold it.</div></div>`;
       return '';
     };
     function draw() {
@@ -105,11 +106,34 @@ export const lesson = {
       const chip = el.querySelector(`[data-try="${hit.id}"]`);
       if (chip) { chip.classList.add('ok'); chip.textContent = `✓ ${hit.chord.symbol}`; }
     }
+    // what the app hears right now, and how it differs from the nearest chord still to play
+    function hear() {
+      const held = [...ctx.held()];
+      el.querySelectorAll('.try').forEach(box => {
+        const line = box.querySelector('.try-hear');
+        const open = tries.filter(t => !t.done && t.id.startsWith(`${box.dataset.block}:`));
+        if (!held.length) { line.textContent = open.length ? 'Play one of these chords and hold it.' : 'All done.'; return; }
+        const exact = tries.find(t => t.id.startsWith(`${box.dataset.block}:`) && matchesChord(held, t.chord));
+        if (exact) { render(line, html`Hearing: <b>${heldNames(held, exact.chord).join(' ')}</b> (${exact.chord.symbol}) <span class="ok">✓</span>`); return; }
+        const pcs = new Set(held.map(m => m % 12));
+        const near = open.slice().sort((a, b) => b.chord.pcs.filter(p => pcs.has(p)).length - a.chord.pcs.filter(p => pcs.has(p)).length)[0];
+        const name = identify(held);
+        let hint = '';
+        if (near) {
+          const missing = near.chord.pcs.map((p, k) => (pcs.has(p) ? null : noteLabel(near.chord.notes[k]))).filter(Boolean);
+          const extra = heldNames(held.filter(m => !near.chord.pcs.includes(m % 12)));
+          if (missing.length === 1 && extra.length === 1) hint = `${near.chord.symbol} has ${missing[0]}, not ${extra[0]}.`;
+          else if (missing.length && !extra.length) hint = `For ${near.chord.symbol}, add ${missing.join(' and ')}.`;
+          else if (!missing.length && extra.length) hint = `${extra.join(' and ')} ${extra.length > 1 ? 'aren’t' : 'isn’t'} in ${near.chord.symbol}.`;
+        }
+        render(line, html`Hearing: <b>${heldNames(held, near && near.chord).join(' ')}</b>${name ? html` (${name})` : ''}${hint ? html` · ${hint}` : ''}`);
+      });
+    }
     let timer = 0;
     draw();
     return {
-      noteOn() { clearTimeout(timer); timer = setTimeout(check, 120); },
-      noteOff() {},
+      noteOn() { hear(); clearTimeout(timer); timer = setTimeout(() => { check(); hear(); }, 120); },
+      noteOff() { hear(); },
       destroy() { clearTimeout(timer); stopPlayback(); kb.setTargets([]); },
     };
   },

@@ -71,3 +71,34 @@ export function matchesChord(heldMidis, ch, { rootPosition = false } = {}) {
   if (rootPosition) return Math.min(...heldMidis) % 12 === ch.pcs[0];
   return true;
 }
+
+// triads too, so a readout can name an incomplete chord
+const TRIADS = { '': { semis: [0, 4, 7], steps: [0, 2, 4] }, m: { semis: [0, 3, 7], steps: [0, 2, 4] }, dim: { semis: [0, 3, 6], steps: [0, 2, 4] }, aug: { semis: [0, 4, 8], steps: [0, 2, 4] } };
+const NAME_ROOTS = ['C', 'Db', 'D', 'Eb', 'E', 'F', 'F#', 'G', 'Ab', 'A', 'Bb', 'B'].map(parseNote);
+
+/** name the chord a set of held notes makes (any inversion): "A7", "Cmaj7", "F♯m"... or null */
+export function identify(heldMidis) {
+  const pcs = new Set(heldMidis.map(m => m % 12));
+  if (pcs.size < 3) return null;
+  const bass = Math.min(...heldMidis) % 12;
+  const found = [];
+  const tables = [...Object.entries(QUALITIES).map(([q, Q]) => [Q.sym, Q.semis]), ...Object.entries(TRIADS).map(([s, T]) => [s, T.semis])];
+  for (const root of NAME_ROOTS) {
+    const r = pcOf(root);
+    for (const [sym, semis] of tables) {
+      if (semis.length !== pcs.size || !semis.every(s => pcs.has((r + s) % 12))) continue;
+      found.push({ name: noteLabel(root) + sym, rootIsBass: r === bass });
+    }
+  }
+  if (!found.length) return null;
+  found.sort((a, b) => b.rootIsBass - a.rootIsBass); // C6 and Am7 are the same notes: prefer the one whose root is in the bass
+  return found[0].name;
+}
+
+/** held notes as names, lowest first, using the target chord's spelling where it matches */
+export function heldNames(heldMidis, target) {
+  const spell = target ? Object.fromEntries(target.pcs.map((pc, k) => [pc, noteLabel(target.notes[k])])) : {};
+  const NAMES = ['C', 'C♯', 'D', 'E♭', 'E', 'F', 'F♯', 'G', 'A♭', 'A', 'B♭', 'B'];
+  const seen = new Set();
+  return heldMidis.slice().sort((a, b) => a - b).filter(m => !seen.has(m % 12) && seen.add(m % 12)).map(m => spell[m % 12] || NAMES[m % 12]);
+}
