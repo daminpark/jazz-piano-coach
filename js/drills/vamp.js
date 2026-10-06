@@ -1,9 +1,14 @@
 // Vamp: four random seventh chords loop over bass and drums; play each chord when it comes around.
-// Each chord window counts as made if you're holding exactly that chord at some point in it (a little early is fine).
+// Each chord window counts as made if you're holding exactly that chord at some point in it (a little early is fine),
+// and as smooth if your hand moved to the closest voicing from the chord before (within 2 semitones).
+// The tempo goes up a level after a few clean runs in a row.
 import { html, render } from '../html.js';
-import { deck, matchesChord } from '../theory.js';
+import { deck, matchesChord, movement, closestVoicing, heldNames } from '../theory.js';
 import { audio, swingGroove } from '../audio.js';
 import { Take } from '../lib/tempo.js';
+import { ladder, UP_AFTER, STEP } from '../lib/ladder.js';
+
+const demoed = new Set();
 
 const CYCLES = 4;
 
@@ -20,7 +25,12 @@ export const vamp = {
   mount(ctx) {
     const { el, cfg, store, kb } = ctx;
     let chords = pickChords(cfg.qualities || ['maj7', '7', 'm7']);
-    let bpc = cfg.beatsPerChord || 8, bpm = cfg.tempo || 100, take = null, hits = [], cur = -1, showTones = false, result = null, timer = 0;
+    let bpc = cfg.beatsPerChord || 8, take = null, hits = [], cur = -1, showTones = false, result = null, timer = 0, prevV = null, cleanToday = 0, goalMet = false, levelMsg = '', demoing = false;
+    const goal = cfg.goal || 2;
+    const lad = () => ladder(store, `vamp:${bpc}`, { start: cfg.tempo || 100, min: 50 });
+    let bpm = lad().bpm;
+    // the four chords in the voicings that move least from one to the next (looping back to the first)
+    const smooth = () => { let v = closestVoicing([60, 64, 67, 71], chords[0]).voicing; const out = [v]; for (let k = 1; k < 4; k++) { v = closestVoicing(v, chords[k]).voicing; out.push(v); } return out; };
     const lead = 0.3; // beats: catching the chord slightly early still counts
 
     function events() {
@@ -33,7 +43,7 @@ export const vamp = {
     }
     async function start() {
       if (take && take.running) return take.stop(false);
-      hits = Array(CYCLES * 4).fill(false); cur = -1; result = null;
+      hits = Array(CYCLES * 4).fill(false); cur = -1; result = null; prevV = null; levelMsg = '';
       take = new Take({ bpm, beats: CYCLES * 4 * bpc, events: events(), onBeat, onEnd: finish });
       await take.start();
       draw();
@@ -44,10 +54,13 @@ export const vamp = {
       if (!take || !take.running) return;
       const w = windowAt(take.beatNow());
       if (w < 0 || w >= hits.length || hits[w]) return;
-      if (matchesChord([...ctx.held()], chords[w % 4])) {
-        hits[w] = true;
-        for (const m of ctx.held()) kb.press(m, 'ok');
-        const cell = el.querySelector(`[data-w="${w}"]`); if (cell) cell.classList.add('hit');
+      const held = [...ctx.held()];
+      if (matchesChord(held, chords[w % 4])) {
+        const v = held.sort((a, b) => a - b);
+        const close = !prevV || movement(prevV, v) <= closestVoicing(prevV, chords[w % 4]).cost + 2;
+        hits[w] = close ? 'smooth' : 'jumpy'; prevV = v;
+        for (const m of v) kb.press(m, close ? 'ok' : 'neutral');
+        const cell = el.querySelector(`[data-w="${w}"]`); if (cell) cell.classList.add(close ? 'hit' : 'jumpy');
       }
     }
     function onBeat(b) {
@@ -56,56 +69,75 @@ export const vamp = {
         if (cur >= 0 && cur < hits.length && !hits[cur]) { const cell = el.querySelector(`[data-w="${cur}"]`); if (cell) cell.classList.add('miss'); }
         cur = w;
         el.querySelectorAll('.vamp-chord').forEach((c, k) => c.classList.toggle('now', w >= 0 && k === w % 4));
-        if (showTones && w >= 0 && w < hits.length) kb.setTargets(voicing(chords[w % 4]).map(m => ({ midi: m, hand: 'R' })));
+        if (showTones && w >= 0 && w < hits.length) kb.setTargets(smooth()[w % 4].map(m => ({ midi: m, hand: 'R' })));
       }
       const c = el.querySelector('.count');
       if (c) c.textContent = b < 0 ? `count-in ${Math.floor(b) + 5}` : `chorus ${Math.min(CYCLES, Math.floor(b / (4 * bpc)) + 1)} of ${CYCLES}`;
     }
-    const voicing = c => { const r = 60 + c.pcs[0] - (c.pcs[0] >= 7 ? 12 : 0); return c.pcs.map(pc => r + ((pc - c.pcs[0] + 12) % 12)); };
     function finish(completed) {
       clearInterval(timer); kb.setTargets([]);
-      const made = hits.filter(Boolean).length;
+      const made = hits.filter(Boolean).length, smoothN = hits.filter(h => h === 'smooth').length;
       const judged = completed ? hits.length : Math.max(0, Math.min(hits.length, cur));
       if (judged >= 4) {
-        result = { made, of: judged, pct: made / judged };
+        result = { made, smooth: smoothN, of: judged, pct: made / judged, tempo: bpm };
+        result.clean = completed && result.pct >= 0.9 && smoothN >= made * 0.75;
+        const lv = lad().record(result.clean);
+        levelMsg = lv.up ? `Level up: ♩ ${bpm} → ${lv.bpm}` : lv.down ? `Back to ♩ ${lv.bpm} for a while` : '';
+        bpm = lv.bpm;
         const V = (store.progress.keys.vamp ||= {});
         const best = V[bpc] || { pct: 0, bpm: 0 };
         if (result.pct > best.pct || (result.pct === best.pct && bpm > best.bpm)) V[bpc] = { pct: result.pct, bpm };
         store.save();
-        store.log({ drill: 'vamp', beatsPerChord: bpc, bpm, ...result });
-        if (completed) ctx.done(result);
+        store.log({ drill: 'vamp', beatsPerChord: bpc, ...result });
+        if (result.clean) { cleanToday++; if (!goalMet && cleanToday >= goal) { goalMet = true; ctx.done(result); } }
       }
       take = null;
       draw();
     }
     const len = { 8: '2 bars', 4: '1 bar', 2: '2 beats', 1: '1 beat' };
+    const names = (v, c) => heldNames(v, c).join(' ');
+    async function demo() {
+      if (demoing || (take && take.running)) return;
+      await audio.init();
+      demoing = true; demoed.add(chords.map(c => c.id).join()); draw();
+      const vs = smooth(), step = 1.1, t0 = audio.now() + 0.1;
+      vs.forEach((v, k) => {
+        audio.chord(v, step * 0.95, t0 + k * step, 0.42);
+        setTimeout(() => { kb.clearPressed(); v.forEach(m => kb.press(m, 'neutral')); el.querySelectorAll('.vamp-chord').forEach((c, j) => c.classList.toggle('now', j === k)); }, (t0 + k * step - audio.now()) * 1000);
+      });
+      setTimeout(() => { kb.clearPressed(); demoing = false; draw(); }, (0.1 + vs.length * step) * 1000 + 200);
+    }
     function draw() {
-      const running = take && take.running;
+      const running = take && take.running, seen = demoed.has(chords.map(c => c.id).join());
+      const vs = smooth(), left = UP_AFTER - lad().streak;
       render(el, html`
         <div class="card drill-card vamp">
-          <div class="vamp-row">${chords.map((c, k) => html`<div class="vamp-chord"><b>${c.symbol}</b><span>${len[bpc]}</span></div>`)}</div>
-          <div class="vamp-grid">${Array.from({ length: CYCLES * 4 }, (_, w) => html`<i data-w="${w}" class="${result || running ? (hits[w] ? 'hit' : w < cur || result ? 'miss' : '') : ''}" title="${chords[w % 4].symbol}"></i>`)}</div>
+          <div class="pat-top"><span class="muted small">Comp each chord on its downbeat, moving to the closest voicing.</span>
+            <div class="goal" title="Clean runs today">${Array.from({ length: goal }, (_, k) => html`<i class="${k < cleanToday ? 'on' : ''}"></i>`)}<span>${goalMet ? '✓ today’s goal' : `${cleanToday} of ${goal} clean runs`}</span></div></div>
+          <div class="vamp-row">${chords.map((c, k) => html`<div class="vamp-chord"><b>${c.symbol}</b><span>${showTones || demoing ? names(vs[k], c) : len[bpc]}</span></div>`)}</div>
+          <div class="vamp-grid">${Array.from({ length: CYCLES * 4 }, (_, w) => html`<i data-w="${w}" class="${result || running ? (hits[w] === 'smooth' ? 'hit' : hits[w] === 'jumpy' ? 'jumpy' : w < cur || result ? 'miss' : '') : ''}" title="${chords[w % 4].symbol}"></i>`)}</div>
           <div class="row">
-            <button class="btn primary" data-a="go">${running ? 'Stop' : 'Start'} <kbd>Space</kbd></button>
+            ${seen || running ? html`<button class="btn primary" data-a="go" ${demoing ? 'disabled' : ''}>${running ? 'Stop' : 'Start'} <kbd>Space</kbd></button><button class="btn" data-a="hear" ${running || demoing ? 'disabled' : ''}>▶ Show me again</button>`
+              : html`<button class="btn primary" data-a="hear" ${demoing ? 'disabled' : ''}>▶ Show me first</button><button class="btn" data-a="go">Start <kbd>Space</kbd></button>`}
             <button class="btn" data-a="new" ${running ? 'disabled' : ''}>New chords</button>
-            <button class="btn ghost" data-a="hear" ${running ? 'disabled' : ''}>Hear them</button>
-            <span class="tempo"><button class="btn ghost" data-t="-5" ${running ? 'disabled' : ''}>−</button><b>♩ = ${bpm}</b><button class="btn ghost" data-t="5" ${running ? 'disabled' : ''}>+</button></span>
+            <span class="tempo" title="Your level at this chord length. It goes up after ${UP_AFTER} clean runs in a row."><button class="btn ghost" data-t="-${STEP}" ${running ? 'disabled' : ''}>−</button><b>♩ = ${bpm}</b><button class="btn ghost" data-t="${STEP}" ${running ? 'disabled' : ''}>+</button></span>
             <select data-a="len" ${running ? 'disabled' : ''} aria-label="Length of each chord">${[8, 4, 2, 1].map(n => html`<option value="${n}" ${n === bpc ? 'selected' : ''}>${len[n]} each</option>`)}</select>
-            <label class="check"><input type="checkbox" data-a="tones" ${showTones ? 'checked' : ''}> Show notes</label>
-            <span class="count muted"></span>
+            <label class="check"><input type="checkbox" data-a="tones" ${showTones ? 'checked' : ''}> Show the closest voicings</label>
+            <span class="count muted">${demoing ? 'Watch: each chord moves as little as possible.' : ''}</span>
           </div>
-          ${result ? html`<div class="verdicts ${result.pct >= 0.9 ? 'pass' : ''}"><div class="verdict-title">${result.made} of ${result.of} chords on time (${Math.round(result.pct * 100)}%)</div>
-            <div class="${result.pct >= 0.9 ? 'ok' : 'warn'}">${result.pct >= 0.9 ? (bpc > 1 ? 'Solid. Try the next shorter length.' : 'One chord per beat: that’s fast!') : 'Missed ones are red. Slow down, or look ahead to the next chord while holding this one.'}</div></div>`
-          : html`<p class="muted small">${cfg.note || ''} Comp each chord on its downbeat (you can come in a touch early). Any voicing and inversion, one or both hands.</p>`}
+          <p class="level muted small">${levelMsg ? html`<b class="ok">${levelMsg}</b> · ` : ''}${left > 0 && left < UP_AFTER ? `${left} more clean run${left > 1 ? 's' : ''} in a row to go up to ♩ ${bpm + STEP}.` : `${UP_AFTER} clean runs in a row move you up a level.`} Clean: 90% on time and 3 in 4 changes to the closest voicing.</p>
+          ${result ? html`<div class="verdicts ${result.clean ? 'pass' : ''}"><div class="verdict-title">${result.clean ? '✓ Clean run' : 'Not yet'}: ${result.made} of ${result.of} on time · ${result.smooth} to the closest voicing</div>
+            <div class="${result.clean ? 'ok' : 'warn'}">${result.clean ? (bpc > 1 ? 'Solid. When the tempo feels easy, try a shorter chord length.' : 'One chord per beat: that’s fast!') : result.pct < 0.9 ? 'Red = missed. Look ahead to the next chord while holding this one.' : 'Amber = on time but the hand jumped. Keep the shared notes and move the others by a step.'}</div></div>` : ''}
         </div>`);
       el.querySelector('[data-a=go]').onclick = start;
-      el.querySelector('[data-a=hear]').onclick = () => audio.init().then(() => chords.forEach((c, k) => audio.chord(voicing(c), 0.9, audio.now() + k * 0.8)));
-      el.querySelector('[data-a=new]').onclick = () => { chords = pickChords(cfg.qualities || ['maj7', '7', 'm7']); result = null; draw(); };
-      el.querySelectorAll('[data-t]').forEach(b => { b.onclick = () => { bpm = Math.max(50, Math.min(220, bpm + +b.dataset.t)); draw(); }; });
-      el.querySelector('[data-a=len]').onchange = e => { bpc = +e.target.value; result = null; draw(); };
-      el.querySelector('[data-a=tones]').onchange = e => { showTones = e.target.checked; if (!showTones) kb.setTargets([]); };
+      el.querySelector('[data-a=hear]').onclick = demo;
+      el.querySelector('[data-a=new]').onclick = () => { chords = pickChords(cfg.qualities || ['maj7', '7', 'm7']); result = null; draw(); if (!demoed.has(chords.map(c => c.id).join())) setTimeout(demo, 300); };
+      el.querySelectorAll('[data-t]').forEach(b => { b.onclick = () => { bpm = Math.max(50, Math.min(220, bpm + +b.dataset.t)); lad().set(bpm); levelMsg = ''; draw(); }; });
+      el.querySelector('[data-a=len]').onchange = e => { bpc = +e.target.value; bpm = lad().bpm; result = null; draw(); };
+      el.querySelector('[data-a=tones]').onchange = e => { showTones = e.target.checked; if (!showTones) kb.setTargets([]); draw(); };
     }
     draw();
+    setTimeout(() => { if (!take && !demoed.has(chords.map(c => c.id).join())) demo(); }, 600);
     return {
       noteOn() { setTimeout(check, 60); },
       noteOff() {},

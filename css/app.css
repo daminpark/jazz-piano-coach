@@ -388,3 +388,12 @@ table.keys td.ok { background: color-mix(in srgb, var(--ok) 26%, var(--card-2));
 .how-more { margin-top: 12px; font-size: 14px; color: var(--ink-soft); }
 .how-more summary { cursor: pointer; color: var(--accent); font-weight: 600; }
 .how-more p { margin: 6px 0 0; }
+.vamp-grid i.jumpy { background: var(--warn); }
+.vamp-chord span { display: block; min-height: 1.2em; }
+.lead-row { display: grid; grid-template-columns: 1fr auto 1.4fr; align-items: center; gap: 14px; margin: 10px 0; }
+.lead-from { display: flex; flex-direction: column; align-items: flex-end; text-align: right; }
+.lead-from b { font-family: var(--serif); font-weight: 400; font-size: 34px; color: var(--ink-soft); }
+.lead-arrow { font-size: 30px; color: var(--accent); }
+.lead-to { display: flex; flex-direction: column; } .lead-to .flash-symbol { margin: 0; text-align: left; }
+.lead .flash-symbol { font-size: clamp(54px, 9vw, 92px); }
+.lead-demo { text-align: center; font-size: clamp(34px, 6vw, 60px) !important; }

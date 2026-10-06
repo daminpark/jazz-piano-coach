@@ -10,6 +10,7 @@ import { DRILLS, USES_KEYS } from './drills/index.js';
 import { FOCUS } from './drills/drone.js';
 import { LESSONS } from './content/index.js';
 import { TECH, setLabel } from './drills/technique.js';
+import { PROGRESSIONS } from './drills/lead.js';
 import { deck, KEYS_FOURTHS, noteLabel, parseNote } from './theory.js';
 import { initFeedback } from './feedback.js';
 
@@ -46,6 +47,7 @@ function describe(st) {
     case 'lesson': return { title: LESSONS[st.lesson].title, sub: 'Lesson' };
     case 'drone': return { title: 'Drone improvisation', sub: `guided ideas: ${(st.focus || []).map(f => FOCUS[f].title.toLowerCase()).join(', ')}` };
     case 'technique': return { title: TECH[st.ex].title, sub: `${st.qualities.length > 1 ? 'maj7, 7 and m7' : st.qualities[0] === '7' ? 'dominant 7' : st.qualities[0]} · until ${st.goal || 4} clean takes` };
+    case 'lead': return { title: 'Closest inversion', sub: `${PROGRESSIONS[st.progression || 'random'].label}${st.progression === 'random' || !st.progression ? ` · ${(st.qualities || ['maj7', '7', 'm7']).map(q => (q === '7' ? 'dom7' : q)).join(', ')}` : ''} · until ${st.goal || 20} smooth changes` };
     case 'chords': return { title: st.label || 'Chord flash cards', sub: `${st.count} cards · ${st.qualities.map(q => (q === '7' ? 'dom7' : q)).join(', ')}${st.bass === 'ask' ? ' · named inversions' : st.bass === 'noRoot' ? ' · no root position' : ''}${st.test ? ' · timed test' : ''}` };
     case 'spell': return { title: 'Spell the chords', sub: `${st.count} chords, written` };
     case 'vamp': return { title: 'Vamp', sub: `4 chords, ${len[st.beatsPerChord]} each · ♩ = ${st.tempo}` };
@@ -55,7 +57,7 @@ function describe(st) {
     default: return { title: st.drill, sub: '' };
   }
 }
-const ICON = { lesson: '📖', technique: '⚙', drone: '〰', chords: '♯', spell: '✎', vamp: '↻', coord: '⇅', swing: '♪', listen: '🎧' };
+const ICON = { lesson: '📖', technique: '⚙', lead: '⇄', drone: '〰', chords: '♯', spell: '✎', vamp: '↻', coord: '⇅', swing: '♪', listen: '🎧' };
 
 // ---------------- keyboard + MIDI ----------------
 const kb = new Keyboard($('#kbWrap'), { onPress: (m, v) => midi.virtual('noteon', m, v), onRelease: m => midi.virtual('noteoff', m) });
@@ -145,6 +147,8 @@ const FREE = {
   slow: { cfg: { drill: 'chords', min: 6, qualities: ALL3, count: 20, slowestFirst: true, label: 'Your slowest chords' }, about: 'the 20 chords you find slowest' },
   test: { cfg: { drill: 'chords', min: 8, qualities: ALL3, count: 36, test: true, label: 'Chord test, timed' }, about: 'all 36, with the gate grid' },
   spell: { cfg: { drill: 'spell', min: 5, qualities: ALL3, count: 12 }, about: 'write the notes of 12 chords' },
+  lead: { cfg: { drill: 'lead', min: 6, progression: 'random', qualities: ALL3, label: 'Closest inversion' }, about: 'random chords, fast and smooth' },
+  leadii: { cfg: { drill: 'lead', min: 6, progression: 'iiVI', label: 'Closest inversion: ii–V–I' }, about: 'ii–V–I through all keys' },
   arp: { cfg: { drill: 'technique', min: 6, ex: 'arp', qualities: ALL3, tempo: 80, label: 'Seventh-chord arpeggios' }, about: 'maj7, 7 and m7 on each root, swung' },
   p1235: { cfg: { drill: 'technique', min: 5, ex: 'p1235', qualities: ['7'], tempo: 90, label: '1-2-3-5 patterns' }, about: 'the 1-2-3-5 shape through all keys' },
   inv: { cfg: { drill: 'technique', min: 5, ex: 'inv', qualities: ['m7'], tempo: 80, label: 'Inversions' }, about: 'block chords up and down the inversions' },

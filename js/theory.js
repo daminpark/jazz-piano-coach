@@ -102,3 +102,26 @@ export function heldNames(heldMidis, target) {
   const seen = new Set();
   return heldMidis.slice().sort((a, b) => a - b).filter(m => !seen.has(m % 12) && seen.add(m % 12)).map(m => spell[m % 12] || NAMES[m % 12]);
 }
+
+// ---- voice leading: how far the hand moves between two voicings ----
+/** semitones moved from voicing a to voicing b (notes paired lowest to lowest; else each new note to the nearest old one) */
+export function movement(a, b) {
+  const A = a.slice().sort((x, y) => x - y), B = b.slice().sort((x, y) => x - y);
+  if (A.length === B.length) return A.reduce((s, x, i) => s + Math.abs(x - B[i]), 0);
+  return B.reduce((s, x) => s + Math.min(...A.map(y => Math.abs(x - y))), 0);
+}
+/** every close-position voicing of a chord (each inversion, each octave) with its lowest note in [lo, hi] */
+export function closeVoicings(ch, lo = 50, hi = 74) {
+  const out = [];
+  for (let k = 0; k < ch.pcs.length; k++) {
+    const rel = ch.pcs.map((_, j) => (ch.pcs[(k + j) % ch.pcs.length] - ch.pcs[k] + 12) % 12);
+    for (let bass = lo; bass <= hi; bass++) if (bass % 12 === ch.pcs[k]) out.push(rel.map(r => bass + r));
+  }
+  return out;
+}
+/** the close voicing of ch that moves least from prev */
+export function closestVoicing(prev, ch) {
+  let best = null, cost = Infinity;
+  for (const v of closeVoicings(ch)) { const c = movement(prev, v); if (c < cost) { cost = c; best = v; } }
+  return { voicing: best, cost };
+}
