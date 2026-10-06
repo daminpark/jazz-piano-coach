@@ -1,6 +1,7 @@
 // The study path, in the order of Jeremy Siskind's "Jazz Piano Fundamentals, Book 1". Each unit has ~30-minute
 // days (a lesson written for this app, then drills) and gates: tests that show when you're ready to move on.
 import { deck, KEYS_FOURTHS } from './theory.js';
+import { FREDDIE_BARS } from './content/freddie-bars.js';
 
 export const BOOK = 'Jazz Piano Fundamentals, Book 1 (Jeremy Siskind, 2021)';
 
@@ -15,27 +16,28 @@ export const TRACKS = {
     // one focus per listen, in order (the book suggests about 20 listens)
     tasks: [
       { text: 'Count the choruses. Each time the 12-bar grid starts over, a new chorus begins. Does what you hear match the counter?' },
-      { text: 'Listen for bar 5 of every chorus, where the chord moves to E♭7 and the music lifts. Say “five” out loud each time it arrives.', from: 0, to: 134, label: 'head and piano solo' },
-      { text: 'Follow the bass: one note per beat. Notice where it goes at bar 9 (F7) and bar 11 (A♭7).', from: 134, to: 270, label: 'trumpet solo' },
-      { text: 'Listen only to the piano behind Coltrane. When does Wynton Kelly play, and when does he leave space? Are his chords long or short?', from: 270, to: 381, label: 'tenor sax solo' },
-      { text: 'Listen to the ride cymbal: “ding, ding-a, ding, ding-a”. Tap along with the “-a”, the swung offbeat.', from: 44, to: 134, label: 'piano solo' },
+      { text: 'Listen for bar 5 of every chorus, where the chord moves to E♭7 and the music lifts. Say “five” out loud each time it arrives.', from: 0, to: FREDDIE_BARS[72], label: 'head and piano solo' },
+      { text: 'Follow the bass: one note per beat. Notice where it goes at bar 9 (F7) and bar 11 (A♭7).', from: FREDDIE_BARS[72], to: FREDDIE_BARS[144], label: 'trumpet solo' },
+      { text: 'Listen only to the piano behind Coltrane. When does Wynton Kelly play, and when does he leave space? Are his chords long or short?', from: FREDDIE_BARS[144], to: FREDDIE_BARS[204], label: 'tenor sax solo' },
+      { text: 'Listen to the ride cymbal: “ding, ding-a, ding, ding-a”. Tap along with the “-a”, the swung offbeat.', from: FREDDIE_BARS[24], to: FREDDIE_BARS[72], label: 'piano solo' },
       { text: 'Compare two soloists: Miles plays few notes with lots of space, Coltrane is dense and fast. Which do you like, and why?', from: 200, to: 330, label: 'Miles into Coltrane' },
-      { text: 'Sing the melody along with the band, both times through. Then hum it from memory.', from: 0, to: 44, label: 'the head' },
+      { text: 'Sing the melody along with the band, both times through. Then hum it from memory.', from: 0, to: FREDDIE_BARS[24], label: 'the head' },
       { text: 'How does one solo hand over to the next? Listen for the last phrase of Coltrane and the first of Cannonball.', from: 345, to: 430, label: 'Coltrane into Cannonball' },
-      { text: 'Kelly’s solo: what does his left hand do while the right hand plays the line? Listen for the short chord stabs.', from: 44, to: 134, label: 'piano solo' },
+      { text: 'Kelly’s solo: what does his left hand do while the right hand plays the line? Listen for the short chord stabs.', from: FREDDIE_BARS[24], to: FREDDIE_BARS[72], label: 'piano solo' },
       { text: 'Free listen: the whole track. Notice one thing you hadn’t heard before.' },
     ],
     personnel: ['Miles Davis, trumpet', 'John Coltrane, tenor sax', 'Cannonball Adderley, alto sax', 'Wynton Kelly, piano', 'Paul Chambers, bass', 'Jimmy Cobb, drums'],
     // a 12-bar blues in B♭ (the solos use the first ending)
     form: ['B♭7', 'B♭7', 'B♭7', 'B♭7', 'E♭7', 'E♭7', 'B♭7', 'B♭7', 'F7', 'E♭7', 'A♭7', 'A♭7'],
+    bars: FREDDIE_BARS, // measured bar starts: the follower stays on the beat
     map: [
-      { label: 'Head', who: 'band', from: 0, to: 44, choruses: 2 },
-      { label: 'Piano solo', who: 'Wynton Kelly', from: 44, to: 134, choruses: 4 },
-      { label: 'Trumpet solo', who: 'Miles Davis', from: 134, to: 270, choruses: 6 },
-      { label: 'Tenor sax solo', who: 'John Coltrane', from: 270, to: 381, choruses: 5 },
-      { label: 'Alto sax solo', who: 'Cannonball Adderley', from: 381, to: 493, choruses: 5 },
-      { label: 'Bass solo', who: 'Paul Chambers', from: 493, to: 535, choruses: 2 },
-      { label: 'Head', who: 'band', from: 535, to: 580, choruses: 2 },
+      { label: 'Head', who: 'band', from: 0, to: FREDDIE_BARS[24], choruses: 2 },
+      { label: 'Piano solo', who: 'Wynton Kelly', from: FREDDIE_BARS[24], to: FREDDIE_BARS[72], choruses: 4 },
+      { label: 'Trumpet solo', who: 'Miles Davis', from: FREDDIE_BARS[72], to: FREDDIE_BARS[144], choruses: 6 },
+      { label: 'Tenor sax solo', who: 'John Coltrane', from: FREDDIE_BARS[144], to: FREDDIE_BARS[204], choruses: 5 },
+      { label: 'Alto sax solo', who: 'Cannonball Adderley', from: FREDDIE_BARS[204], to: FREDDIE_BARS[264], choruses: 5 },
+      { label: 'Bass solo', who: 'Paul Chambers', from: FREDDIE_BARS[264], to: FREDDIE_BARS[288], choruses: 2 },
+      { label: 'Head', who: 'band', from: FREDDIE_BARS[288], to: FREDDIE_BARS[312], choruses: 2 },
     ],
     quiz: [
       { q: 'How many bars long is one chorus of the solos?', a: ['8', '12', '16', '24'], ok: 1 },

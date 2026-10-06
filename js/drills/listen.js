@@ -46,6 +46,8 @@ export const listen = {
     const end = T.length || T.map[T.map.length - 1].to;
     const P = store.progress, S = store.settings;
     const offsets = (S.listenOffset ||= {});
+    // a sync offset per source: the measured bar map fits the YouTube audio exactly, your own file may start differently
+    const offKey = () => `${id}:${source}`;
     let source = S.listenSource || 'youtube';
     let player = null, audioEl = null, fileUrl = null, timer = 0, manual = { t0: null, at: 0 };
     let counted = false, heard = 0, lastT = null, quiz = cfg.quiz ? 'open' : null, answers = {}, ytError = null;
@@ -60,14 +62,14 @@ export const listen = {
       if (source === 'file') return audioEl ? audioEl.currentTime : 0;
       return manual.t0 == null ? manual.at : manual.at + (performance.now() - manual.t0) / 1000;
     }
-    const now = () => rawTime() + (offsets[id] || 0);
+    const now = () => rawTime() + (offsets[offKey()] || 0);
     function playing() {
       if (source === 'youtube') return !!(player && player.getPlayerState && player.getPlayerState() === 1);
       if (source === 'file') return !!(audioEl && !audioEl.paused);
       return manual.t0 != null;
     }
     function seek(t) {
-      const raw = Math.max(0, t - (offsets[id] || 0));
+      const raw = Math.max(0, t - (offsets[offKey()] || 0));
       if (source === 'youtube' && player && player.seekTo) player.seekTo(raw, true);
       else if (source === 'file' && audioEl) audioEl.currentTime = raw;
       else { manual.at = raw; if (manual.t0 != null) manual.t0 = performance.now(); }
@@ -91,12 +93,12 @@ export const listen = {
     }
     /** tap beat 1 of a few bars and the counter lines itself up with what you hear */
     function tap() {
-      const raw = rawTime(), off = offsets[id] || 0;
+      const raw = rawTime(), off = offsets[offKey()] || 0;
       const t = raw + off, nearest = starts.reduce((b, x) => (Math.abs(x - t) < Math.abs(b - t) ? x : b), starts[0]);
       taps.push(nearest - raw); if (taps.length > 8) taps.shift();
       if (taps.length >= 3) {
         const sorted = taps.slice().sort((a, b) => a - b);
-        offsets[id] = Math.round(sorted[Math.floor(sorted.length / 2)] * 20) / 20; store.save();
+        offsets[offKey()] = Math.round(sorted[Math.floor(sorted.length / 2)] * 20) / 20; store.save();
       }
       drawControls(); paint();
     }
@@ -179,10 +181,10 @@ export const listen = {
         <span class="l-sync" title="While the music plays, tap on beat 1 of a few bars (the first beat of each bar). The counter lines itself up with what you hear.">
           <button class="btn small" data-a="tap">Tap beat 1 to sync <kbd>T</kbd></button>
           <button class="btn ghost small" data-o="-0.25">−¼ s</button><button class="btn ghost small" data-o="0.25">+¼ s</button>
-          ${offsets[id] ? html`<span class="muted small">${taps.length >= 3 ? 'synced ' : ''}${offsets[id] > 0 ? '+' : ''}${offsets[id]} s</span>` : taps.length ? html`<span class="muted small">${3 - taps.length} more tap${taps.length === 2 ? '' : 's'}</span>` : ''}</span>
+          ${offsets[offKey()] ? html`<span class="muted small">${taps.length >= 3 ? 'synced ' : ''}${offsets[offKey()] > 0 ? '+' : ''}${offsets[offKey()]} s</span>` : taps.length ? html`<span class="muted small">${3 - taps.length} more tap${taps.length === 2 ? '' : 's'}</span>` : ''}</span>
         ${ytError && source === 'youtube' ? html`<span class="bad small">${ytError}</span>` : ''}`);
       const m = c.querySelector('[data-a=manual]'); if (m) m.onclick = toggle;
-      c.querySelectorAll('[data-o]').forEach(b => { b.onclick = () => { offsets[id] = Math.round(((offsets[id] || 0) + +b.dataset.o) * 100) / 100; taps = []; store.save(); drawControls(); paint(); }; });
+      c.querySelectorAll('[data-o]').forEach(b => { b.onclick = () => { offsets[offKey()] = Math.round(((offsets[offKey()] || 0) + +b.dataset.o) * 100) / 100; taps = []; store.save(); drawControls(); paint(); }; });
       c.querySelector('[data-a=tap]').onclick = tap;
     }
 
