@@ -93,8 +93,8 @@ export const UNITS = [
         step('listen', 5, { track: 'freddie' }),
       ] },
       { title: 'Closest inversion', steps: [
-        step('lesson', 3, { lesson: 'u1-inversions' }),
-        step('drone', 4, { focus: ['phrases', 'rhythm'] }),
+        step('lesson', 4, { lesson: 'u1-inversions' }),
+        step('drone', 3, { focus: ['phrases', 'rhythm'] }),
         step('lead', 7, { progression: 'random', qualities: ['maj7', '7'], goal: 20 }),
         step('lead', 6, { progression: 'iiVI', goal: 15 }),
         step('coord', 6, { keys: ['C', 'F', 'Bb'], part: 2, tempo: 90, goal: 3 }),

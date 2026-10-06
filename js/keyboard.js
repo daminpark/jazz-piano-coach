@@ -57,7 +57,7 @@ export class Keyboard {
   setTargets(targets) {
     for (const m in this.labels) { this.labels[m].remove(); }
     this.labels = {};
-    for (let m = LOW; m <= HIGH; m++) this.keys[m].classList.remove('t-R', 't-L', 't-next-R', 't-next-L');
+    for (let m = LOW; m <= HIGH; m++) this.keys[m].classList.remove('t-R', 't-L', 't-K', 't-next-R', 't-next-L', 't-next-K');
     const byMidi = {};
     for (const t of targets) if (!byMidi[t.midi] || (t.strength || 1) > (byMidi[t.midi].strength || 1)) byMidi[t.midi] = t;
     for (const t of Object.values(byMidi)) {
