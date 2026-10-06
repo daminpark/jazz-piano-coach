@@ -377,3 +377,14 @@ table.keys td.ok { background: color-mix(in srgb, var(--ok) 26%, var(--card-2));
 .mv-focus { font-size: 12px; font-weight: 700; letter-spacing: .08em; text-transform: uppercase; color: var(--accent); }
 .mv-dots { display: inline-flex; gap: 5px; } .mv-dots i { width: 8px; height: 8px; border-radius: 50%; background: var(--line-2); }
 .mv-dots i.on { background: var(--accent); } .mv-dots i.done { background: color-mix(in srgb, var(--accent) 45%, var(--card-2)); }
+/* shared exercise layout: goal dots, short instructions, foldable details */
+.pat-top { display: flex; justify-content: space-between; align-items: center; gap: 10px; flex-wrap: wrap; margin-bottom: 8px; }
+.goal { display: inline-flex; align-items: center; gap: 4px; font-size: 13px; color: var(--ink-soft); }
+.goal i { width: 10px; height: 10px; border-radius: 50%; border: 1.5px solid var(--line-2); }
+.goal i.on { background: var(--ok); border-color: var(--ok); }
+.goal span { margin-left: 4px; }
+.pat-short { margin: 0 0 10px; font-size: 15px; }
+.level { margin: 8px 0 0; }
+.how-more { margin-top: 12px; font-size: 14px; color: var(--ink-soft); }
+.how-more summary { cursor: pointer; color: var(--accent); font-weight: 600; }
+.how-more p { margin: 6px 0 0; }

@@ -27,28 +27,37 @@ export function analyzeSwing(notes, t0, beatSec) {
     if (ns[i + 1].t - ns[i].off < 0.035) connected++;
   }
   if (!pairs.length) return { pairs: 0, legato: judged ? connected / judged : null };
+  return { ...pairStats(pairs.map(p => ({ placement: p.placement, onVel: p.on.vel, offVel: p.off.vel }))), legato: judged ? connected / judged : null };
+}
+
+export const SWING_ZONE = [0.58, 0.76];
+const LOUDER_BY = 3; // MIDI velocity: an offbeat counts as louder only if it's clearly louder than its beat
+export const PAIR_TARGET = 0.75; // three pairs in four, so a few very loud offbeats can't make up for the rest
+
+/** per-pair counts: how many offbeats landed in the swing zone, how many were louder than the beat before them */
+export function pairStats(pairs) {
+  const n = pairs.length;
+  if (!n) return { pairs: 0 };
   const mean = xs => xs.reduce((s, x) => s + x, 0) / xs.length;
+  const inZone = pairs.filter(p => p.placement >= SWING_ZONE[0] && p.placement <= SWING_ZONE[1]).length;
+  const louder = pairs.filter(p => p.offVel >= p.onVel + LOUDER_BY).length;
   const placement = mean(pairs.map(p => p.placement));
-  const accent = mean(pairs.map(p => p.off.vel)) / Math.max(1, mean(pairs.map(p => p.on.vel)));
-  return { pairs: pairs.length, placement, ratio: placement / (1 - placement), accent, legato: judged ? connected / judged : null };
+  return { pairs: n, placement, inZone, louder, zoneOk: inZone / n >= PAIR_TARGET, louderOk: louder / n >= PAIR_TARGET };
 }
 
 /** short human verdicts; each has ok: true/false */
-export function swingVerdicts(a) {
+export function swingVerdicts(a, { offbeat = 'offbeat' } = {}) {
   const v = [];
   if (!a.pairs) return [{ ok: false, text: 'No eighth-note pairs found. Play some eighth notes in time with the groove.' }];
   const pct = Math.round(a.placement * 100);
-  if (a.placement < 0.58) v.push({ ok: false, text: `Offbeats land at ${pct}% of the beat: too straight. Aim for ~67% (the third triplet partial).` });
-  else if (a.placement > 0.76) v.push({ ok: false, text: `Offbeats land at ${pct}% of the beat: too dotted. Aim for ~67% (triplet feel).` });
-  else v.push({ ok: true, text: `Offbeats land at ${pct}% of the beat: a good triplet-based swing.` });
-  const acc = Math.round((a.accent - 1) * 100);
-  if (a.accent >= 1.04) v.push({ ok: true, text: `Offbeats ${acc}% louder than downbeats: doo-VAH.` });
-  else v.push({ ok: false, text: acc < 0 ? `Downbeats ${-acc}% louder than offbeats: lighten the beat, lean on the offbeat (doo-VAH).`
-    : 'Offbeats and downbeats are about equal: lean a little more on the offbeat (doo-VAH).' });
+  const where = a.placement < SWING_ZONE[0] ? 'mostly too straight' : a.placement > SWING_ZONE[1] ? 'mostly too late' : 'about right';
+  v.push({ ok: a.zoneOk, text: `Swing: ${a.inZone} of ${a.pairs} ${offbeat}s landed in the swing zone (on average at ${pct}% of the beat, ${where}; aim for 67%).` });
+  v.push({ ok: a.louderOk, text: a.louderOk ? `Accent: the ${offbeat} was louder than its beat in ${a.louder} of ${a.pairs} pairs. doo-VAH.`
+    : `Accent: the ${offbeat} was louder than its beat in only ${a.louder} of ${a.pairs} pairs. Keep every beat light and every ${offbeat} leaning, not just some.` });
   if (a.legato != null) {
     const l = Math.round(a.legato * 100);
-    v.push({ ok: a.legato >= 0.8, text: a.legato >= 0.8 ? `Legato: ${l}% of notes connected.` : `Legato: only ${l}% of notes connected. Hold each note until the next one.` });
+    v.push({ ok: a.legato >= 0.8, soft: true, text: a.legato >= 0.8 ? `Legato: ${l}% of notes connected.` : `Legato: only ${l}% of notes connected. Hold each note until the next one.` });
   }
   return v;
 }
-export const swingPasses = a => !!a.pairs && a.placement >= 0.58 && a.placement <= 0.76 && a.accent >= 1.04 && (a.legato == null || a.legato >= 0.8);
+export const swingPasses = a => !!a.pairs && a.zoneOk && a.louderOk && (a.legato == null || a.legato >= 0.8);

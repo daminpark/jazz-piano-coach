@@ -102,6 +102,33 @@ export const UNIT1_LESSONS = {
     ],
   },
 
+  'u1-inversions': {
+    title: 'Inversions: same chord, different note on the bottom',
+    blocks: [
+      { abc: '"Cmaj7" [CEGB]2 [EGBc]2 [GBce]2 [Bceg]2 | [GBce]2 [EGBc]2 [CEGB]4 |]', bpm: 76, caption: 'Watch the keys: Cmaj7 climbing through its four positions and back. Each time, the bottom note jumps to the top.' },
+      { h: 'What an inversion is' },
+      { p: 'A seventh chord has four notes, and any of them can be the lowest. **Root position** has the root at the bottom. Move the bottom note up an octave and you get the **1st inversion**: now the 3rd is lowest. Again: **2nd inversion**, the 5th at the bottom. Once more: **3rd inversion**, the 7th at the bottom.' },
+      { keys: [60, 64, 67, 71], label: 'Root position: C E G B (root at the bottom)' },
+      { keys: [64, 67, 71, 72], label: '1st inversion: E G B C (3rd at the bottom)' },
+      { keys: [67, 71, 72, 76], label: '2nd inversion: G B C E (5th at the bottom)' },
+      { keys: [71, 72, 76, 79], label: '3rd inversion: B C E G (7th at the bottom)' },
+      { p: 'It’s still Cmaj7 every time: the same four notes doing the same job. Only the shape under your hand and the colour change a little.' },
+      { tip: 'How to recognise any inversion: look for the two notes a step apart (here B and C). The upper one of the pair is the root.' },
+      { h: 'Why jazz pianists rarely play root position' },
+      { p: 'Going from chord to chord in root position makes the hand jump around. With inversions you stay in one spot and move each note by a step or not at all (that’s the voice leading from the vamp lesson). The bass player usually has the root covered anyway.' },
+      { abc: '"Dm7" [FAcd]4 "G7" [FGBd]4 | "Cmaj7" [EGBc]8 |]', bpm: 84, caption: 'Dm7/F, G7/F, Cmaj7/E: three inversions, and every note either stays put or moves one step.' },
+      { h: 'Finding an inversion fast' },
+      { list: [
+        '**Bottom note first.** Say it, find it, put your thumb on it. Then stack the other chord notes above it in order. For Fmaj7 with A at the bottom: A, then C, E, F.',
+        '**Or rotate from root position:** take the bottom note and move it to the top, one step at a time.',
+        '**Slash chords:** Cmaj7/E means Cmaj7 with E at the bottom. Lead sheets use this, and so do the inversion cards.',
+      ] },
+      { p: 'Your turn. Each of these names the bottom note after the slash:' },
+      { try: { chords: [['C', 'maj7', 1], ['F', 'maj7', 2], ['G', '7', 1], ['D', 'm7', 3], ['Bb', '7', 2], ['A', 'm7', 1]] } },
+      { tip: 'In the technique drill the lane labels show which note belongs at the bottom on every beat. On the inversion cards, say the bass note out loud before you play.' },
+    ],
+  },
+
   'u1-spelling': {
     title: 'Spelling chords and the circle of fourths',
     blocks: [

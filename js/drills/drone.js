@@ -64,7 +64,7 @@ export const drone = {
     function toggle() {
       if (finished) { finished = false; elapsed = 0; st = fresh(); moveIdx = 0; moveStart = 0; drawMove(); }
       running = !running; lastTick = performance.now() / 1000;
-      if (running) { st.silentSince = lastTick; startDrone(); } else { stopDrone(); }
+      if (running) { st.silentSince = lastTick; startDrone(); if (elapsed < 1) playExample(); } else { stopDrone(); }
       draw();
     }
     function startDrone() {
@@ -113,8 +113,12 @@ export const drone = {
     function nextMove(auto) {
       if (moveIdx >= plan.length - 1) return;
       moveIdx++; moveStart = elapsed;
-      if (auto) audio.init().then(() => audio.play(88, 0.6, audio.now(), 0.12));
       drawMove();
+      playExample(); // show the new idea before you try it
+    }
+    function playExample() {
+      const m = plan[moveIdx];
+      playAbc({ abc: m.abc, drone: appDrone ? null : droneMidis(), bpm: m.swing ? 104 : 76 }, { swing: !!m.swing, accent: !!m.swing, kb: ctx.kb });
     }
     function drawMove() {
       const box = el.querySelector('.move'); if (!box) return;
@@ -124,10 +128,10 @@ export const drone = {
           <span class="mv-dots">${plan.map((_, k) => html`<i class="${k < moveIdx ? 'done' : k === moveIdx ? 'on' : ''}"></i>`)}</span></div>
         <h3>${m.title}</h3>
         <p>${m.text}</p>
-        <div class="row"><button class="btn small" data-a="example">▶ Hear an example</button>
+        <div class="row"><button class="btn small" data-a="example">▶ Show me again</button>
           ${moveIdx < plan.length - 1 ? html`<button class="btn ghost small" data-a="next">Next idea →</button>` : ''}
           <span class="mv-left muted small"></span></div>`);
-      box.querySelector('[data-a=example]').onclick = () => playAbc({ abc: m.abc, drone: droneMidis(), bpm: m.swing ? 104 : 76 }, { swing: !!m.swing, accent: !!m.swing });
+      box.querySelector('[data-a=example]').onclick = playExample;
       const nx = box.querySelector('[data-a=next]'); if (nx) nx.onclick = () => nextMove(false);
     }
     function draw() {

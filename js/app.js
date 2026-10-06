@@ -45,12 +45,12 @@ function describe(st) {
   switch (st.drill) {
     case 'lesson': return { title: LESSONS[st.lesson].title, sub: 'Lesson' };
     case 'drone': return { title: 'Drone improvisation', sub: `guided ideas: ${(st.focus || []).map(f => FOCUS[f].title.toLowerCase()).join(', ')}` };
-    case 'technique': return { title: TECH[st.ex].title, sub: `${st.qualities.length > 1 ? 'maj7, 7 and m7' : st.qualities[0] === '7' ? 'dominant 7' : st.qualities[0]} · from ♩ = ${st.tempo}` };
-    case 'chords': return { title: st.label || 'Chord flash cards', sub: `${st.count} cards · ${st.qualities.map(q => (q === '7' ? 'dom7' : q)).join(', ')}${st.test ? ' · timed test' : ''}` };
+    case 'technique': return { title: TECH[st.ex].title, sub: `${st.qualities.length > 1 ? 'maj7, 7 and m7' : st.qualities[0] === '7' ? 'dominant 7' : st.qualities[0]} · until ${st.goal || 4} clean takes` };
+    case 'chords': return { title: st.label || 'Chord flash cards', sub: `${st.count} cards · ${st.qualities.map(q => (q === '7' ? 'dom7' : q)).join(', ')}${st.bass === 'ask' ? ' · named inversions' : st.bass === 'noRoot' ? ' · no root position' : ''}${st.test ? ' · timed test' : ''}` };
     case 'spell': return { title: 'Spell the chords', sub: `${st.count} chords, written` };
     case 'vamp': return { title: 'Vamp', sub: `4 chords, ${len[st.beatsPerChord]} each · ♩ = ${st.tempo}` };
-    case 'coord': return { title: `Coordination Exercise 1, part ${st.part}`, sub: `${st.keys === 'unpassed' ? 'keys not yet passed' : st.keys.map(k => noteLabel(parseNote(k))).join(', ')} · from ♩ = ${st.tempo}` };
-    case 'swing': return { title: 'Swing check', sub: `${Array.isArray(st.exercises) ? `Swing Exercise${st.exercises.length > 1 ? 's' : ''} ${st.exercises.join(' and ')}` : 'any swing exercise'} · ♩ = ${st.tempo}` };
+    case 'coord': return { title: `Coordination Exercise 1, part ${st.part}`, sub: `${st.keys === 'unpassed' ? 'keys not yet passed, one clean take each' : `${st.keys.map(k => noteLabel(parseNote(k))).join(', ')} · until ${st.goal || Math.max(3, st.keys.length * 2)} clean takes`}` };
+    case 'swing': return { title: 'Swing check', sub: `${Array.isArray(st.exercises) ? `Swing Exercise${st.exercises.length > 1 ? 's' : ''} ${st.exercises.join(' and ')}` : 'any swing exercise'} · until ${st.goal || (Array.isArray(st.exercises) ? st.exercises.length * 2 : 2)} clean takes` };
     case 'listen': return { title: `Listen: ${TRACKS[st.track].title}`, sub: st.quiz ? 'follow the form + quiz' : 'follow the form' };
     default: return { title: st.drill, sub: '' };
   }
@@ -202,7 +202,7 @@ function renderToday() {
       <li class="step ${stepDone(n, i) ? 'done' : ''}" data-step="${i}" tabindex="0">
         <span class="sicon">${stepDone(n, i) ? '✓' : ICON[st.drill]}</span>
         <span class="stext"><b>${d.title}</b><span class="muted">${d.sub}</span>${st.note ? html`<span class="snote">${st.note}</span>` : ''}</span>
-        <span class="smin">${st.min} min</span>
+        <span class="smin">~${st.min} min</span>
       </li>`; })}</ol>
     <div class="card gates">
       <h3>Unit ${unit.id} gates <span class="muted small">pass these to finish the unit</span></h3>
@@ -346,7 +346,8 @@ addEventListener('hashchange', route);
 document.addEventListener('keydown', e => {
   const typing = ['INPUT', 'TEXTAREA', 'SELECT'].includes(document.activeElement?.tagName) && document.activeElement.type !== 'checkbox';
   if (typing || e.metaKey || e.ctrlKey || e.altKey) return;
-  if (e.code === 'Space' && view() === 'practice' && S.inst && S.inst.onSpace) { e.preventDefault(); S.inst.onSpace(); }
+  if (e.code === 'Space' && view() === 'practice' && S.inst && S.inst.onSpace) { e.preventDefault(); S.inst.onSpace(); return; }
+  if (view() === 'practice' && S.inst && S.inst.onKey && S.inst.onKey(e)) e.preventDefault();
 });
 document.addEventListener('pointerdown', () => { if (window.Tone && Tone.getContext().state !== 'running') Tone.start(); }, { once: true });
 

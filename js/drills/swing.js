@@ -7,6 +7,9 @@ import { analyzeSwing, swingVerdicts, swingPasses, phaseOf } from '../lib/swing.
 import { parseAbc, swingNotes, drawAbc } from '../lib/abc.js';
 import { SWING_EXERCISES } from '../content/index.js';
 import { playAbc, stopPlayback } from './lesson.js';
+import { ladder, UP_AFTER, STEP } from '../lib/ladder.js';
+
+const demoed = new Set();
 
 const FREE_BARS = 8;
 const LETTERS = Object.keys(SWING_EXERCISES);
@@ -20,8 +23,10 @@ export const swing = {
     const choices = [...list, 'free'];
     const exStat = () => ((P.keys.swingEx ||= {}));
     let ex = list.find(l => !exStat()[l]?.passed) || list[0];
-    let bpm = cfg.tempo || 100, take = null, notes = [], open = new Map(), result = null;
-    const tried = new Set();
+    let take = null, notes = [], open = new Map(), result = null, cleanToday = 0, goalMet = false, levelMsg = '', demoing = false;
+    const goal = cfg.goal || (Array.isArray(cfg.exercises) ? list.length * 2 : 2);
+    const lad = () => ladder(store, `swing:${ex}`, { start: cfg.tempo || 100, min: 60 });
+    let bpm = lad().bpm;
     const split = 60; // notes from middle C up are the line; below is your left hand keeping time
 
     function expected() {
@@ -33,8 +38,8 @@ export const swing = {
 
     async function start() {
       if (take && take.running) return take.stop(false);
-      stopPlayback();
-      notes = []; open.clear(); result = null;
+      stopPlayback(); demoing = false;
+      notes = []; open.clear(); result = null; levelMsg = '';
       take = new Take({ bpm, beats: beats(), events: swingGroove(beats(), bpm, { kick: true }), onBeat, onEnd: finish });
       await take.start();
       draw();
@@ -54,7 +59,7 @@ export const swing = {
         accuracy = m.pairs.length / exp.length; extra = m.extra.length;
       }
       const passed = swingPasses(analysis) && (accuracy == null || accuracy >= 0.9);
-      result = { analysis, accuracy, extra, passed };
+      result = { analysis, accuracy, extra, passed, tempo: bpm };
       if (analysis.pairs >= 4) {
         const S = (P.swing ||= []);
         S.push({ at: Date.now(), ex, bpm, placement: analysis.placement, accent: analysis.accent, legato: analysis.legato, pairs: analysis.pairs, accuracy, passed });
@@ -64,9 +69,20 @@ export const swing = {
           st.tries++; if (passed) { st.passed = true; st.bpm = Math.max(st.bpm || 0, bpm); }
         }
         store.save();
-        store.log({ drill: 'swing', ex, bpm, placement: analysis.placement, accent: analysis.accent, accuracy, passed });
-        tried.add(ex);
-        if (list.every(l => tried.has(l)) || (!Array.isArray(cfg.exercises) && passed)) ctx.done({ passed });
+        store.log({ drill: 'swing', ex, bpm, placement: analysis.placement, louder: analysis.louder, pairs: analysis.pairs, accuracy, passed });
+        if (ex !== 'free') {
+          const lv = lad().record(passed);
+          levelMsg = lv.up ? `Level up: ♩ ${bpm} → ${lv.bpm}` : lv.down ? `Back to ♩ ${lv.bpm} for a while` : '';
+        }
+        if (passed) {
+          cleanToday++;
+          if (!goalMet && cleanToday >= goal) { goalMet = true; ctx.done({ passed }); }
+          // next exercise in the step that still needs work
+          const i = list.indexOf(ex);
+          const next = list.slice(i + 1).concat(list.slice(0, i + 1)).find(l => !exStat()[l]?.passed);
+          if (next && next !== ex) { result.next = next; ex = next; bpm = lad().bpm; }
+          else bpm = ex === 'free' ? bpm : lad().bpm;
+        } else if (ex !== 'free') bpm = lad().bpm;
       }
       take = null;
       draw();
@@ -86,38 +102,53 @@ export const swing = {
         ${offs.map(f => html`<line x1="${x(f)}" x2="${x(f)}" y1="18" y2="42" class="hitmark"></line>`)}
       </svg>`;
     }
+    function demo() {
+      if (take && take.running) return;
+      const E = SWING_EXERCISES[ex]; if (!E) return;
+      demoed.add(ex); demoing = true; draw();
+      playAbc({ abc: E.abc, bpm, ride: true }, { swing: true, accent: true, kb, onEnd: () => { demoing = false; draw(); } });
+    }
     function draw() {
       const running = take && take.running;
       const E = SWING_EXERCISES[ex];
+      const seen = !E || demoed.has(ex);
       const hist = (P.swing || []).slice(-5).reverse();
       const a = result && result.analysis;
+      const left = UP_AFTER - (E ? lad().streak : 0);
       render(el, html`
         <div class="card drill-card swingcheck">
-          <div class="chips">${choices.map(l => html`<button class="chip ${l === ex ? 'on' : ''} ${exStat()[l]?.passed ? 'pass' : exStat()[l]?.tries ? 'tried' : ''}" data-ex="${l}" ${running ? 'disabled' : ''}>${l === 'free' ? 'Free play' : `Exercise ${l}${exStat()[l]?.passed ? ' ✓' : ''}`}</button>`)}</div>
-          ${E ? html`<p><b>${ex}. ${E.title}.</b> ${E.focus} Play it twice through with the right hand. Your left hand can keep quarter notes below middle C.</p>
+          <div class="pat-top">
+            <div class="chips">${choices.map(l => html`<button class="chip ${l === ex ? 'on' : ''} ${exStat()[l]?.passed ? 'pass' : exStat()[l]?.tries ? 'tried' : ''}" data-ex="${l}" ${running ? 'disabled' : ''}>${l === 'free' ? 'Free play' : `Exercise ${l}${exStat()[l]?.passed ? ' ✓' : ''}`}</button>`)}</div>
+            <div class="goal" title="Clean takes today">${Array.from({ length: goal }, (_, k) => html`<i class="${k < cleanToday ? 'on' : ''}"></i>`)}<span>${goalMet ? '✓ today’s goal' : `${cleanToday} of ${goal} clean`}</span></div>
+          </div>
+          ${E ? html`<p class="pat-short"><b>${ex}. ${E.title}.</b> ${E.focus}</p>
             <div class="abc-host swing-abc"></div>`
-          : html`<p>Play any eighth-note line in your right hand for ${FREE_BARS} bars: a scale, an idea from the drone, a phrase from a record. Say “doo-VAH” in your head.</p>`}
+          : html`<p class="pat-short">Play any eighth-note line in your right hand for ${FREE_BARS} bars: a scale, an idea from the drone, a phrase from a record.</p>`}
           ${ruler()}
           <div class="row">
-            <button class="btn primary" data-a="go">${running ? 'Stop' : 'Start'} <kbd>Space</kbd></button>
-            ${E ? html`<button class="btn" data-a="listen" ${running ? 'disabled' : ''}>Listen</button>` : ''}
-            <span class="tempo"><button class="btn ghost" data-t="-5" ${running ? 'disabled' : ''}>−</button><b>♩ = ${bpm}</b><button class="btn ghost" data-t="5" ${running ? 'disabled' : ''}>+</button></span>
-            <span class="count muted"></span>
+            ${seen || running
+              ? html`<button class="btn primary" data-a="go" ${demoing ? 'disabled' : ''}>${running ? 'Stop' : 'Start'} <kbd>Space</kbd></button>${E ? html`<button class="btn" data-a="listen" ${running || demoing ? 'disabled' : ''}>▶ Show me again</button>` : ''}`
+              : html`<button class="btn primary" data-a="listen" ${demoing ? 'disabled' : ''}>▶ Show me first</button><button class="btn" data-a="go">Start <kbd>Space</kbd></button>`}
+            <span class="tempo" title="Your level for this exercise. It goes up by itself after ${UP_AFTER} clean takes in a row."><button class="btn ghost" data-t="-${STEP}" ${running ? 'disabled' : ''}>−</button><b>♩ = ${bpm}</b><button class="btn ghost" data-t="${STEP}" ${running ? 'disabled' : ''}>+</button></span>
+            <span class="count muted">${demoing ? 'Watch and listen…' : ''}</span>
           </div>
+          ${E ? html`<p class="level muted small">${levelMsg ? html`<b class="ok">${levelMsg}</b> · ` : ''}${left > 0 && left < UP_AFTER ? `${left} more clean take${left > 1 ? 's' : ''} in a row to go up to ♩ ${bpm + STEP}.` : `${UP_AFTER} clean takes in a row move you up a level (♩ +${STEP}).`}</p>` : ''}
           ${result ? html`<div class="verdicts ${result.passed ? 'pass' : ''}">
-              <div class="verdict-title">${result.passed ? '✓ That swings' : a.pairs ? 'Not yet' : 'Nothing to measure'}${a.pairs ? html` <span class="muted small">(${a.pairs} eighth-note pairs measured)</span>` : ''}</div>
+              <div class="verdict-title">${result.passed ? `✓ That swings at ♩ = ${result.tempo}` : a.pairs ? 'Not yet: same again' : 'Nothing to measure'}${result.next ? html` <span class="muted small">· next up: Exercise ${result.next}</span>` : ''}</div>
               ${result.accuracy != null ? html`<div class="${result.accuracy >= 0.9 ? 'ok' : 'bad'}">${result.accuracy >= 0.9 ? '✓' : '✗'} Notes: ${Math.round(result.accuracy * 100)}% right${result.extra ? `, ${result.extra} extra` : ''}.</div>` : ''}
-              ${swingVerdicts(a).map(v => html`<div class="${v.ok ? 'ok' : 'bad'}">${v.ok ? '✓' : '✗'} ${v.text}</div>`)}
+              ${swingVerdicts(a).map(v => html`<div class="${v.ok ? 'ok' : v.soft ? 'warn' : 'bad'}">${v.ok ? '✓' : '✗'} ${v.text}</div>`)}
             </div>` : ''}
+          <details class="how-more"><summary>How to do it</summary><p>Play the line twice through with your right hand over the ride cymbal, after a one-bar count-in. Your left hand can keep quarter notes below middle C. Swung eighths: each offbeat lands on the last third of the beat, and is a little louder than the note before it (doo-VAH). It counts as clean when at least 3 in 4 offbeats land in the swing zone and 3 in 4 are louder than their beat.</p></details>
           ${hist.length ? html`<p class="muted small">Recent: ${hist.map((h, k) => html`${k ? ' · ' : ''}${h.passed ? '✓' : '✗'} ${h.ex && h.ex !== 'free' ? `${h.ex} ` : ''}${Math.round(h.placement * 100)}% at ♩ ${h.bpm}`)}</p>` : ''}
         </div>`);
       const host = el.querySelector('.swing-abc'); if (host && E) drawAbc(host, E.abc);
       el.querySelector('[data-a=go]').onclick = start;
-      const li = el.querySelector('[data-a=listen]'); if (li) li.onclick = () => playAbc({ abc: E.abc, bpm, ride: true }, { swing: true, accent: true });
-      el.querySelectorAll('[data-t]').forEach(b => { b.onclick = () => { bpm = Math.max(60, Math.min(220, bpm + +b.dataset.t)); draw(); }; });
-      el.querySelectorAll('[data-ex]').forEach(b => { b.onclick = () => { ex = b.dataset.ex; result = null; notes = []; draw(); }; });
+      const li = el.querySelector('[data-a=listen]'); if (li) li.onclick = demo;
+      el.querySelectorAll('[data-t]').forEach(b => { b.onclick = () => { bpm = Math.max(60, Math.min(220, bpm + +b.dataset.t)); if (ex !== 'free') lad().set(bpm); levelMsg = ''; draw(); }; });
+      el.querySelectorAll('[data-ex]').forEach(b => { b.onclick = () => { ex = b.dataset.ex; result = null; notes = []; levelMsg = ''; if (ex !== 'free') bpm = lad().bpm; draw(); if (!demoed.has(ex) && SWING_EXERCISES[ex]) setTimeout(demo, 300); }; });
     }
     draw();
+    if (SWING_EXERCISES[ex] && !demoed.has(ex)) setTimeout(() => { if (!take) demo(); }, 600);
     return {
       noteOn(m, vel, t) {
         if (!take || !take.running || m < split) return;

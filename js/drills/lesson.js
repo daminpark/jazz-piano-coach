@@ -28,10 +28,13 @@ function miniKeys(notes) {
 }
 
 let playing = null;
-export async function playAbc(block, { swing = !!block.swing, accent = !!block.accent } = {}) {
+let lit = []; // keyboard highlights scheduled for the current example
+/** play an ABC example; with kb, the keys light up as the notes sound (a demonstration, not just audio) */
+export async function playAbc(block, { swing = !!block.swing, accent = !!block.accent, kb = null, onEnd = null } = {}) {
   await audio.init();
   if (playing) playing.stop();
   audio.stopAll();
+  lit.forEach(clearTimeout); lit = [];
   const bpm = block.bpm || 112, b = 60 / bpm;
   let { notes, beats } = parseAbc(block.abc);
   if (swing) notes = swingNotes(notes);
@@ -42,10 +45,19 @@ export async function playAbc(block, { swing = !!block.swing, accent = !!block.a
   });
   if (block.drone) for (let t = 0; t < beats; t += 4) ev.push({ t: t * b, kind: 'chord', midis: block.drone, dur: 4 * b + 0.5, vel: 0.3 });
   if (block.ride) ev.push(...swingGroove(Math.ceil(beats), bpm, { kick: false }));
-  playing = new Scheduler(ev, audio.now() + 0.08).start();
-  const p = playing; setTimeout(() => { if (playing === p) { p.stop(); playing = null; } }, (beats * b + 2) * 1000);
+  const t0 = audio.now() + 0.08;
+  playing = new Scheduler(ev, t0).start();
+  if (kb) {
+    const lead = (t0 - audio.now()) * 1000 + (audio.ctx.outputLatency || 0) * 1000;
+    for (const n of notes) {
+      lit.push(setTimeout(() => kb.press(n.midi, 'neutral'), lead + n.beat * b * 1000));
+      lit.push(setTimeout(() => kb.release(n.midi), lead + (n.beat + n.dur) * b * 1000 - 30));
+    }
+  }
+  const p = playing;
+  lit.push(setTimeout(() => { if (playing === p) { p.stop(); playing = null; } if (onEnd) onEnd(); }, (beats * b + 1) * 1000));
 }
-export function stopPlayback() { if (playing) { playing.stop(); playing = null; } audio.stopAll(); }
+export function stopPlayback() { if (playing) { playing.stop(); playing = null; } lit.forEach(clearTimeout); lit = []; audio.stopAll(); }
 
 export const lesson = {
   title: 'Lesson',
@@ -54,7 +66,12 @@ export const lesson = {
     const L = LESSONS[cfg.lesson];
     const R = () => (store.progress.lessons ||= {});
     const tries = []; // {id, chord, done}
-    L.blocks.forEach((b, i) => { if (b.try) b.try.chords.forEach(([r, q], k) => tries.push({ id: `${i}:${k}`, chord: mkChord(r, q), done: false })); });
+    // [root, quality, inversion?]: with an inversion, that chord tone must be the lowest note (shown as a slash chord)
+    L.blocks.forEach((b, i) => { if (b.try) b.try.chords.forEach(([r, q, inv], k) => {
+      const c = mkChord(r, q);
+      tries.push({ id: `${i}:${k}`, chord: inv == null ? c : { ...c, inv, symbol: `${c.symbol}/${noteLabel(c.notes[inv])}` }, done: false });
+    }); });
+    const fits = (held, c) => matchesChord(held, c) && (c.inv == null || Math.min(...held) % 12 === c.pcs[c.inv]);
     const block = (b, i) => {
       if (b.h) return html`<h3>${b.h}</h3>`;
       if (b.p) return html`<p>${fmt(b.p)}</p>`;
@@ -81,7 +98,7 @@ export const lesson = {
         </article>`);
       el.querySelectorAll('[data-abc]').forEach(host => drawAbc(host, L.blocks[+host.dataset.abc].abc));
       el.querySelectorAll('[data-play]').forEach(btn => {
-        btn.onclick = () => { const b = L.blocks[+btn.dataset.play]; playAbc(b, btn.dataset.swing != null ? { swing: btn.dataset.swing === '1', accent: btn.dataset.accent === '1' } : {}); };
+        btn.onclick = () => { const b = L.blocks[+btn.dataset.play]; playAbc(b, btn.dataset.swing != null ? { swing: btn.dataset.swing === '1', accent: btn.dataset.accent === '1', kb } : { kb }); };
       });
       el.querySelectorAll('[data-keys]').forEach(btn => {
         btn.onclick = async () => {
@@ -99,7 +116,7 @@ export const lesson = {
     }
     function check() {
       const held = [...ctx.held()];
-      const hit = tries.find(t => !t.done && matchesChord(held, t.chord));
+      const hit = tries.find(t => !t.done && fits(held, t.chord));
       if (!hit) return;
       hit.done = true;
       for (const m of held) kb.press(m, 'ok');
@@ -113,7 +130,7 @@ export const lesson = {
         const line = box.querySelector('.try-hear');
         const open = tries.filter(t => !t.done && t.id.startsWith(`${box.dataset.block}:`));
         if (!held.length) { line.textContent = open.length ? 'Play one of these chords and hold it.' : 'All done.'; return; }
-        const exact = tries.find(t => t.id.startsWith(`${box.dataset.block}:`) && matchesChord(held, t.chord));
+        const exact = tries.find(t => t.id.startsWith(`${box.dataset.block}:`) && fits(held, t.chord));
         if (exact) { render(line, html`Hearing: <b>${heldNames(held, exact.chord).join(' ')}</b> (${exact.chord.symbol}) <span class="ok">✓</span>`); return; }
         const pcs = new Set(held.map(m => m % 12));
         const near = open.slice().sort((a, b) => b.chord.pcs.filter(p => pcs.has(p)).length - a.chord.pcs.filter(p => pcs.has(p)).length)[0];
@@ -122,7 +139,8 @@ export const lesson = {
         if (near) {
           const missing = near.chord.pcs.map((p, k) => (pcs.has(p) ? null : noteLabel(near.chord.notes[k]))).filter(Boolean);
           const extra = heldNames(held.filter(m => !near.chord.pcs.includes(m % 12)));
-          if (missing.length === 1 && extra.length === 1) hint = `${near.chord.symbol} has ${missing[0]}, not ${extra[0]}.`;
+          if (!missing.length && !extra.length && near.chord.inv != null) hint = `Right notes: now put ${noteLabel(near.chord.notes[near.chord.inv])} at the bottom.`;
+          else if (missing.length === 1 && extra.length === 1) hint = `${near.chord.symbol} has ${missing[0]}, not ${extra[0]}.`;
           else if (missing.length && !extra.length) hint = `For ${near.chord.symbol}, add ${missing.join(' and ')}.`;
           else if (!missing.length && extra.length) hint = `${extra.join(' and ')} ${extra.length > 1 ? 'aren’t' : 'isn’t'} in ${near.chord.symbol}.`;
         }
