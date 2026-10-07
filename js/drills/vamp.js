@@ -108,7 +108,7 @@ export const vamp = {
       setTimeout(() => { kb.clearPressed(); demoing = false; draw(); }, (0.1 + vs.length * step) * 1000 + 200);
     }
     function draw() {
-      const running = take && take.running, seen = demoed.has(chords.map(c => c.id).join());
+      const running = take && take.running;
       const vs = smooth(), left = UP_AFTER - lad().streak;
       render(el, html`
         <div class="card drill-card vamp">
@@ -117,8 +117,8 @@ export const vamp = {
           <div class="vamp-row">${chords.map((c, k) => html`<div class="vamp-chord"><b>${c.symbol}</b><span>${showTones || demoing ? names(vs[k], c) : len[bpc]}</span></div>`)}</div>
           <div class="vamp-grid">${Array.from({ length: CYCLES * 4 }, (_, w) => html`<i data-w="${w}" class="${result || running ? (hits[w] === 'smooth' ? 'hit' : hits[w] === 'jumpy' ? 'jumpy' : w < cur || result ? 'miss' : '') : ''}" title="${chords[w % 4].symbol}"></i>`)}</div>
           <div class="row">
-            ${seen || running ? html`<button class="btn primary" data-a="go" ${demoing ? 'disabled' : ''}>${running ? 'Stop' : 'Start'} <kbd>Space</kbd></button><button class="btn" data-a="hear" ${running || demoing ? 'disabled' : ''}>▶ Show me again</button>`
-              : html`<button class="btn primary" data-a="hear" ${demoing ? 'disabled' : ''}>▶ Show me first</button><button class="btn" data-a="go">Start <kbd>Space</kbd></button>`}
+            ${running ? html`<button class="btn" data-a="go">Stop</button>` : html`<b class="g-turn">${demoing ? 'Watch…' : 'Play any key to start'}</b>`}
+            <button class="btn ghost small" data-a="hear" ${running || demoing ? 'disabled' : ''}>↻ Show me again</button>
             <button class="btn" data-a="new" ${running ? 'disabled' : ''}>New chords</button>
             <span class="tempo" title="Your level at this chord length. It goes up after ${UP_AFTER} clean runs in a row."><button class="btn ghost" data-t="-${STEP}" ${running ? 'disabled' : ''}>−</button><b>♩ = ${bpm}</b><button class="btn ghost" data-t="${STEP}" ${running ? 'disabled' : ''}>+</button></span>
             <select data-a="len" ${running ? 'disabled' : ''} aria-label="Length of each chord">${[8, 4, 2, 1].map(n => html`<option value="${n}" ${n === bpc ? 'selected' : ''}>${len[n]} each</option>`)}</select>
@@ -129,7 +129,7 @@ export const vamp = {
           ${result ? html`<div class="verdicts ${result.clean ? 'pass' : ''}"><div class="verdict-title">${result.clean ? '✓ Clean run' : 'Not yet'}: ${result.made} of ${result.of} on time · ${result.smooth} to the closest voicing</div>
             <div class="${result.clean ? 'ok' : 'warn'}">${result.clean ? (bpc > 1 ? 'Solid. When the tempo feels easy, try a shorter chord length.' : 'One chord per beat: that’s fast!') : result.pct < 0.9 ? 'Red = missed. Look ahead to the next chord while holding this one.' : 'Amber = on time but the hand jumped. Keep the shared notes and move the others by a step.'}</div></div>` : ''}
         </div>`);
-      el.querySelector('[data-a=go]').onclick = start;
+      const go = el.querySelector('[data-a=go]'); if (go) go.onclick = start;
       el.querySelector('[data-a=hear]').onclick = demo;
       el.querySelector('[data-a=new]').onclick = () => { chords = pickChords(cfg.qualities || ['maj7', '7', 'm7']); result = null; draw(); if (!demoed.has(chords.map(c => c.id).join())) setTimeout(demo, 300); };
       el.querySelectorAll('[data-t]').forEach(b => { b.onclick = () => { bpm = Math.max(50, Math.min(220, bpm + +b.dataset.t)); lad().set(bpm); levelMsg = ''; draw(); }; });
@@ -139,9 +139,10 @@ export const vamp = {
     draw();
     setTimeout(() => { if (!take && !demoed.has(chords.map(c => c.id).join())) demo(); }, 600);
     return {
-      noteOn() { setTimeout(check, 60); },
+      noteOn() { if (!take && !demoing) { start(); return; } setTimeout(check, 60); }, // play any key to start
       noteOff() {},
       get take() { return take; }, // for debugging
+      busy: () => !!(take && take.running) || demoing,
       onSpace() { start(); },
       destroy() { clearInterval(timer); if (take) { take.onEnd = null; take.stop(); } kb.setTargets([]); },
     };

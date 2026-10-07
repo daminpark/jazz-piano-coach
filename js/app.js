@@ -66,6 +66,7 @@ let lastActivity = 0;
 midi.addEventListener('noteon', e => {
   const { midi: m, vel, time, source } = e.detail;
   lastActivity = performance.now();
+  if (advance) advance.until = performance.now() + ADVANCE_MS; // still playing: stay on this step
   if (source === 'screen' || store.settings.echo) audio.init().then(() => audio.attack(m, vel / 127));
   kb.press(m, 'neutral');
   if (S.inst && S.inst.noteOn) S.inst.noteOn(m, vel, time);
@@ -87,7 +88,24 @@ function updateMidiPill() {
 // ---------------- practice runner ----------------
 const S = { n: null, i: null, cfg: null, free: null, inst: null, sec: 0, doneNow: false };
 function openStep(n, i) { location.hash = `#practice/${n}/${i}`; }
+// when a step's goal is met, move on to the next one by itself once you stop playing for a few seconds
+const ADVANCE_MS = 6000;
+let advance = null;
+function scheduleAdvance() {
+  clearAdvance();
+  const day = dayAt(S.n, P()), last = S.i + 1 >= day.steps.length;
+  advance = { hash: last ? '#today' : `#practice/${S.n}/${S.i + 1}`, label: last ? 'the end of today' : describe(day.steps[S.i + 1]).title, until: performance.now() + ADVANCE_MS };
+  advance.timer = setInterval(() => {
+    const bar = $('#pAdvance');
+    if (S.inst && S.inst.busy && S.inst.busy()) advance.until = performance.now() + ADVANCE_MS; // mid-take: wait
+    const left = Math.max(0, advance.until - performance.now());
+    if (bar) { bar.hidden = false; render(bar, html`<span class="ok">✓ Step done.</span> Next: <b>${advance.label}</b> in ${Math.ceil(left / 1000)} s <span class="muted small">(keep playing to stay)</span><i style="width:${(left / ADVANCE_MS) * 100}%"></i>`); }
+    if (left <= 0) { const h = advance.hash; clearAdvance(); location.hash = h; }
+  }, 200);
+}
+function clearAdvance() { if (advance) clearInterval(advance.timer); advance = null; const bar = $('#pAdvance'); if (bar) bar.hidden = true; }
 function mountPractice() {
+  clearAdvance();
   const parts = location.hash.split('/');
   if (S.inst) { S.inst.destroy(); S.inst = null; }
   kb.setTargets([]); kb.clearPressed();
@@ -103,7 +121,7 @@ function mountPractice() {
   const def = DRILLS[S.cfg.drill];
   const ctx = {
     el: drillEl, cfg: S.cfg, store, kb, held: () => midi.active,
-    done: result => { if (S.n != null) { markStep(S.n, S.i, result); S.doneNow = true; renderPracticeHead(); } },
+    done: result => { if (S.n != null) { const first = !S.doneNow; markStep(S.n, S.i, result); S.doneNow = true; renderPracticeHead(); if (first) scheduleAdvance(); } },
     restart: () => mountPractice(),
   };
   S.inst = def.mount(ctx);
@@ -338,6 +356,7 @@ function route() {
   const v = ['today', 'path', 'practice', 'progress', 'settings'].includes(view()) ? view() : 'today';
   document.querySelectorAll('.view').forEach(el => el.classList.toggle('active', el.id === `view-${v}`));
   document.querySelectorAll('nav a').forEach(a => a.classList.toggle('active', a.dataset.view === v));
+  if (v !== 'practice') clearAdvance();
   if (v !== 'practice' && S.inst) { S.inst.destroy(); S.inst = null; S.cfg = null; kb.setTargets([]); }
   if (v === 'today') renderToday();
   if (v === 'path') renderPath();

@@ -120,7 +120,7 @@ export function patternDrill(spec) {
         </svg>`;
       }
       function draw() {
-        const running = take && take.running, demoing = running && take.demo, seen = demoed.has(demoKey());
+        const running = take && take.running, demoing = running && take.demo;
         const how = spec.how(cfg);
         const left = UP_AFTER - lad.streak;
         render(el, html`
@@ -132,9 +132,8 @@ export function patternDrill(spec) {
             <p class="pat-short">${how.short}${ex.sub ? html` <span class="muted">· ${ex.sub}</span>` : ''}</p>
             ${lane()}
             <div class="row coord-controls">
-              ${seen || running
-                ? html`<button class="btn primary" data-a="go" ${demoing ? 'disabled' : ''}>${running && !demoing ? 'Stop' : 'Start'} <kbd>Space</kbd></button><button class="btn" data-a="demo" ${running ? 'disabled' : ''}>▶ Show me again</button>`
-                : html`<button class="btn primary" data-a="demo">▶ Show me first</button><button class="btn" data-a="go">Start <kbd>Space</kbd></button>`}
+              ${running && !demoing ? html`<button class="btn" data-a="go">Stop</button>` : html`<b class="g-turn">${demoing ? 'Watch…' : 'Play any key to start'}</b>`}
+              <button class="btn ghost small" data-a="demo" ${running ? 'disabled' : ''}>↻ Show me again</button>
               <span class="tempo" title="Your level. It goes up by itself after ${UP_AFTER} clean takes in a row."><button class="btn ghost" data-t="-${STEP}" ${running ? 'disabled' : ''}>−</button><b>♩ = ${bpm()}</b><button class="btn ghost" data-t="${STEP}" ${running ? 'disabled' : ''}>+</button></span>
               ${spec.controls ? spec.controls(S, running) : ''}
               <label class="check"><input type="checkbox" data-a="guide" ${guide ? 'checked' : ''}> Light up the keys</label>
@@ -144,10 +143,11 @@ export function patternDrill(spec) {
             ${result ? html`<div class="verdicts ${result.clean ? 'pass' : ''}">
                 <div class="verdict-title">${result.clean ? `✓ Clean at ♩ = ${result.tempo || ''}` : 'Not yet: same again'}${result.nextLabel ? html` <span class="muted small">· next up: ${result.nextLabel}</span>` : ''}</div>
                 ${result.verdicts.map(v => html`<div class="${v.ok ? 'ok' : v.soft ? 'warn' : 'bad'}">${v.ok ? '✓' : '✗'} ${v.text}</div>`)}
-              </div>` : !seen && !running ? html`<p class="muted small">Watch it once first: the keys light up as it plays. Then it’s your turn.</p>` : ''}
+              </div>` : ''}
             <details class="how-more"><summary>How to do it</summary><p>${how.long}</p></details>
           </div>`);
         const go = el.querySelector('[data-a=go]'); if (go) go.onclick = () => run(false);
+        const hd = el.querySelector('.coord-controls .count'); if (hd && demoing) hd.textContent = '';
         const dm = el.querySelector('[data-a=demo]'); if (dm) dm.onclick = () => run(true);
         el.querySelectorAll('[data-t]').forEach(b => { b.onclick = () => { lad.set(bpm() + +b.dataset.t); levelMsg = ''; draw(); }; });
         el.querySelectorAll('[data-set]').forEach(b => { b.onclick = () => { setId = b.dataset.set; ex = spec.exercise(cfg, setId); result = null; played = []; draw(); if (!demoed.has(demoKey())) setTimeout(() => run(true), 300); }; });
@@ -159,7 +159,8 @@ export function patternDrill(spec) {
       if (!demoed.has(demoKey())) setTimeout(() => { if (!take) run(true); }, 600);
       return {
         noteOn(m, vel, t) {
-          if (!take || !take.running || take.demo) return;
+          if (!take) { run(false); return; } // play any key to start a take (that key only starts it)
+          if (!take.running || take.demo) return;
           const p = { midi: m, vel, beat: take.beatAt(t), hand: m < ex.split ? 'L' : 'R' };
           if (p.beat < -0.5) return;
           played.push(p); open.set(m, p);
@@ -168,6 +169,7 @@ export function patternDrill(spec) {
         noteOff(m, t) { const p = open.get(m); if (p && take) { p.offBeat = take.beatAt(t); open.delete(m); } },
         onSpace() { if (!(take && take.demo)) run(false); },
         get take() { return take; }, // for debugging
+        busy: () => !!(take && take.running),
         destroy() { if (take) { take.onEnd = null; take.stop(); } kb.setTargets([]); },
       };
     },

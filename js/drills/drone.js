@@ -64,7 +64,7 @@ export const drone = {
     function toggle() {
       if (finished) { finished = false; elapsed = 0; st = fresh(); moveIdx = 0; moveStart = 0; drawMove(); }
       running = !running; lastTick = performance.now() / 1000;
-      if (running) { st.silentSince = lastTick; startDrone(); if (elapsed < 1) playExample(); } else { stopDrone(); }
+      if (running) { st.silentSince = lastTick; startDrone(); } else { stopDrone(); }
       draw();
     }
     function startDrone() {
@@ -144,7 +144,7 @@ export const drone = {
               <div class="move"></div>
               <p class="muted small">Left hand: a low open fifth (${droneMidis().map(m => ['C', 'C♯', 'D', 'E♭', 'E', 'F', 'F♯', 'G', 'A♭', 'A', 'B♭', 'B'][m % 12]).join(' + ')}), re-struck whenever it fades. Right hand: improvise using the notes of ${noteLabel(parseNote(key))} major. Pedal is fine. ${focuses.length > 1 ? `Focus changes every ${Math.round(total / focuses.length / 60)} min.` : ''}</p>
               <div class="row">
-                <button class="btn primary" data-a="go">${finished ? 'Again' : running ? 'Pause' : elapsed ? 'Resume' : 'Start'} <kbd>Space</kbd></button>
+                ${running ? html`<button class="btn" data-a="go">Pause</button>` : html`<b class="g-turn">${finished ? 'Play any key to go again' : 'Play any key to start'}</b>`}
                 ${running || finished ? '' : html`<button class="btn ghost" data-a="end" ${elapsed > 30 ? '' : 'disabled'}>Finish now</button>`}
                 <select data-a="key" ${running ? 'disabled' : ''} aria-label="Key">${KEYS.map(k => html`<option value="${k}" ${k === key ? 'selected' : ''}>${noteLabel(parseNote(k))} drone</option>`)}</select>
                 <label class="check"><input type="checkbox" data-a="app" ${appDrone ? 'checked' : ''}> The app plays the drone</label>
@@ -166,15 +166,17 @@ export const drone = {
         </div>`);
       drawMove();
       paintLive();
-      el.querySelector('[data-a=go]').onclick = toggle;
+      const go = el.querySelector('[data-a=go]'); if (go) go.onclick = toggle;
       const e = el.querySelector('[data-a=end]'); if (e) e.onclick = end;
       el.querySelector('[data-a=key]').onchange = ev => { key = ev.target.value; store.settings.droneKey = key; store.save(); draw(); };
       el.querySelector('[data-a=app]').onchange = ev => { appDrone = ev.target.checked; store.settings.appDrone = appDrone; store.save(); if (running) { if (appDrone) startDrone(); else stopDrone(); } };
     }
     timer = setInterval(tick, 250);
     draw();
+    setTimeout(playExample, 600); // show the first idea before you start
     return {
       noteOn(m) {
+        if (!running) toggle(); // the session starts (or starts again) when you play
         if (!running || m < SPLIT) return;
         const now = performance.now() / 1000;
         if (st.rhHeld === 0 && st.silentSince != null) {
@@ -194,6 +196,7 @@ export const drone = {
         if (st.rhHeld === 0) st.silentSince = performance.now() / 1000;
       },
       onSpace() { toggle(); },
+      busy: () => running,
       destroy() { clearInterval(timer); stopDrone(); stopPlayback(); },
     };
   },

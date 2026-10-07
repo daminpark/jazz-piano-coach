@@ -1,238 +1,128 @@
-// Unit 1 lessons. Written for this app so it teaches on its own.
-// Blocks: h (heading) · p (paragraph, **bold** / *italic*) · list · tip · table {head, rows}
-//         abc {abc, caption, bpm, swing, compare: 'swing'|'accent', drone, ride} · keys {notes, label} · try {chords: [[root, quality]]}
+// Unit 1 lessons, as guided steps: one short line, a demonstration (sound + keys lighting up), then your turn.
+// The app listens and moves on by itself once you've played it.
+//
+// step: { say, demo?, do?, more? }
+//   demo: { abc, bpm, swing, accent, ride, drone } | { chords: [[root, quality], ...], start?: [midis], root?: true }
+//         | { keys: [midis] } | [demo, demo, ...] (played one after another)
+//   do:   { chord: [root, quality] } | { hold: [midis] } | { chain: [[root, quality], ...], hints: 0-2, start?: [midis] }
+//         | { notes: 'abc' } (these pitches in order, any octave) | { free: n, pcs?: [...] } (n notes, optionally from these pitch classes)
+//         | { timed: 'abc', bpm, ride?, anyPitch?, need: { swing?, accent? } } (play along after a count-in)
+
+const DRONE = [36, 43];
+const LINE = 'C D E F G A B c | B A G F E D C2 |]';
 
 export const UNIT1_LESSONS = {
   'u1-welcome': {
-    title: 'How this course works, the drone, and your first chord',
-    blocks: [
-      { h: 'How the days work' },
-      { p: 'Each day is about 30 minutes: a short lesson, then a handful of drills covering what a jazz pianist practises: **technique**, **time and feel**, **harmony**, **improvising** and **listening**. The drills listen to your piano over MIDI, so you get an honest score instead of a hunch.' },
-      { p: 'Every unit ends with **gates**: concrete tests such as “find all 36 chords in under 3 seconds”. Pass them and you’re ready for the next unit. If you don’t pass yet, you get catch-up days aimed at whatever is missing.' },
-      { h: 'Five habits that make practice work' },
-      { list: [
-        '**Slow and right beats fast and wrong.** Your hands learn exactly what you repeat. Drop the tempo until a take is clean, then creep up 5 at a time.',
-        '**Everything in all 12 keys.** Jazz tunes move through many keys, often within a few bars. A chord you can only find in C isn’t really yours yet.',
-        '**Listen every day.** Jazz is learned by ear first. The recordings are the real textbook; the theory explains what you hear.',
-        '**Improvise every day,** even for five minutes, even simply. It’s a skill like any other and grows with repetitions.',
-        '**Short and daily beats long and rare.** Thirty focused minutes a day does more than one long weekend session.',
-      ] },
-      { h: 'Improvising over a drone' },
-      { p: 'A **drone** is one sound that never changes. Here it’s a low C with the G above it, an open fifth. Over it you improvise freely with the seven notes of C major. Because the harmony never moves, all your attention can go to *how each note sounds* and to shaping your ideas.' },
-      { abc: '"C drone" z2 E2 G4- | G2 A G E4 | z4 D2 E2 | C8 |]', drone: [36, 43], bpm: 72, caption: 'A phrase over the drone: a few notes, a breath, then an answer that comes home.' },
-      { list: [
-        '**Left hand:** C2 and G2 together (two octaves below middle C). Strike them again whenever the sound fades. Using the pedal is fine.',
-        '**Right hand:** any white keys from around middle C upward.',
-        '**Start with very few notes.** Silence is part of the music, and it gives you time to hear.',
-      ] },
-      { p: 'Notice how differently the notes sit over the drone:' },
-      { table: { head: ['Note', 'Over a C drone'], rows: [
-        ['C, G', 'Home. Completely at rest.'],
-        ['E', 'Warm and settled. This note makes the sound “major”.'],
-        ['D, A', 'Open and floating, a little unresolved.'],
-        ['B', 'Bright, leaning upward: it wants to rise to C.'],
-        ['F', 'Restless: it tends to fall to E.'],
-      ] } },
-      { tip: 'In the drone drill the app can play the drone for you (tick the box). After each session it tells you how many phrases you played, how much space you left and how varied your rhythms were.' },
-      { h: 'Your first chord: the major seventh' },
-      { p: 'Jazz harmony is built mostly from **seventh chords**: four notes stacked in thirds, using every other letter name (C–E–G–B). The first type is the **major seventh**: a major triad plus the note **a half step below the root**.' },
-      { keys: [60, 64, 67, 71], label: 'Cmaj7 = C E G B' },
-      { p: 'Cmaj7 is also written **CM7**, **CΔ7** or just **CΔ**. They all mean the same four notes.' },
-      { p: 'To find any major seventh fast: play the major triad, then add the note a half step below the root. F: F A C + E. E♭: E♭ G B♭ + D.' },
-      { keys: [65, 69, 72, 76], label: 'Fmaj7 = F A C E' },
-      { keys: [63, 67, 70, 74], label: 'E♭maj7 = E♭ G B♭ D' },
-      { p: 'In every drill, **any inversion counts**: the four notes can be in any order and octave, in one hand or two. What matters is that exactly those four notes sound together.' },
-      { try: { chords: [['C', 'maj7'], ['F', 'maj7'], ['Eb', 'maj7'], ['A', 'maj7']] } },
+    title: 'First sounds: the drone and the major seventh',
+    steps: [
+      { say: 'A drone: a low C and G that never change. Listen to how the notes above it sound.', demo: { abc: '"C drone" z2 E2 G4- | G2 A G E4 | z4 D2 E2 | C8 |]', drone: DRONE, bpm: 72 } },
+      { say: 'Your turn: hold low C and G with your left hand.', demo: { keys: DRONE }, do: { hold: DRONE } },
+      { say: 'Right hand: play C, E or G a few times, slowly. Let each note ring over the drone.', do: { free: 4, pcs: [0, 4, 7] } },
+      { say: 'B pulls up into C. Play B, then C.', demo: { abc: 'B4 c4- | c8 |]', drone: DRONE, bpm: 72 }, do: { notes: 'Bc' } },
+      { say: 'F leans down into E. Play F, then E.', demo: { abc: 'F4 E4- | E8 |]', drone: DRONE, bpm: 72 }, do: { notes: 'FE' } },
+      { say: 'Your first jazz chord, Cmaj7: a C major triad plus B, a half step below C.', demo: { keys: [60, 64, 67, 71] }, do: { chord: ['C', 'maj7'] } },
+      { say: 'Fmaj7: F major plus E.', demo: { keys: [65, 69, 72, 76] }, do: { chord: ['F', 'maj7'] } },
+      { say: 'E♭maj7: E♭ major plus D.', demo: { keys: [63, 67, 70, 74] }, do: { chord: ['Eb', 'maj7'] } },
+      { say: 'No demo this time: Amaj7.', do: { chord: ['A', 'maj7'] }, more: 'A major (A C♯ E) plus the note a half step below A.' },
+      { say: 'And D♭maj7.', do: { chord: ['Db', 'maj7'] }, more: 'D♭ major (D♭ F A♭) plus C.' },
     ],
   },
 
   'u1-swing': {
     title: 'Swing feel and the dominant seventh',
-    blocks: [
-      { h: 'What swing actually is' },
-      { p: 'Jazz eighth notes are written like ordinary eighths but **played long-short**. Feel each beat in three parts, a triplet, and put the eighths on the first and third parts: the first eighth lasts two thirds of the beat, the second lasts one third.' },
-      { abc: 'C D E F G A B c | B A G F E D C2 |]', compare: 'swing', bpm: 116, ride: true, caption: 'The same written line, straight and then swung.' },
-      { p: 'Count it **“1-trip-let, 2-trip-let”**. The offbeat eighth lands on “let”. In the drills you’ll see where your offbeats land as a percentage of the beat: 50% is straight, **about 67% is swing**.' },
-      { h: 'The weight goes on the offbeat' },
-      { p: 'Classical phrasing leans on the beat. Swing does the opposite: the **offbeat eighth is a little louder** than the one on the beat. Hear it as **“doo-VAH, doo-VAH”**, soft on the beat and strong off it. Think of lightening the downbeat rather than hitting the offbeat harder.' },
-      { abc: 'C D E F G A B c | B A G F E D C2 |]', compare: 'accent', bpm: 116, ride: true, caption: 'Swung with even weight, then swung with the offbeats leaned on. Hear how the second one moves forward.' },
-      { h: 'Legato' },
-      { p: 'Swing eighths are connected: hold each note until the next one sounds. Even repeated notes stay smooth; let the key rise only part of the way before playing it again. Gaps between notes are a special effect, not the default.' },
-      { h: 'Coordination Exercise 1' },
-      { p: 'This exercise puts the triplet feel into your hands. The right hand plays a two-octave major scale up and down. The left hand plays steady quarter notes on the tonic, an octave below the starting note.' },
-      { list: [
-        '**Part 1:** play every *other* scale note twice, so each beat has three notes: C C D, E E F, G G A… Accent the third note of each group.',
-        '**Part 2:** drop the repeated note but keep hearing it. What’s left, C D, E F, G A…, is exactly swung eighths, still accented on the offbeat.',
-      ] },
-      { abc: '(3CCD (3EEF (3GGA (3BBc | (3ccB (3AAG (3FFE (3DDC |]', bpm: 84, caption: 'Part 1 (a bar up, a bar down): three notes per beat, weight on the third.' },
-      { abc: 'C D E F G A B c | c B A G F E D C |]', swing: true, accent: true, bpm: 84, caption: 'Part 2: the repeated note is gone. Same feel, now as swung eighths.' },
-      { p: 'The drill draws the notes as a lane, gives you a one-bar count-in, then checks every note, your timing, where your offbeats land and whether they’re accented. It goes key by key around the circle of fourths.' },
-      { h: 'The dominant seventh' },
-      { p: 'The second chord type is a major triad plus the note **a whole step below the root**. It’s written with just a 7: **C7, F7, B♭7**. It’s the restless, bluesy sound that wants to move somewhere, and the main chord of the blues.' },
-      { keys: [60, 64, 67, 70], label: 'C7 = C E G B♭' },
-      { p: 'Compare it with Cmaj7: only the top note changes, B down to B♭, but the mood changes completely.' },
-      { try: { chords: [['C', '7'], ['G', '7'], ['Bb', '7'], ['E', '7']] } },
-      { tip: 'Today’s swing check uses **Swing Exercises A and B**. Press Listen first, then play along with the drums.' },
+    steps: [
+      { say: 'The same line straight, then swung. Swung eighths are long-short.', demo: [{ abc: LINE, bpm: 112, ride: true }, { abc: LINE, bpm: 112, ride: true, swing: true, accent: true }] },
+      { say: 'Your turn: play it swung after the count-in.', do: { timed: LINE, bpm: 96, need: { swing: 0.6 } }, more: 'Feel each beat in three. The offbeat note lands on the third part.' },
+      { say: 'Now lean on the offbeats: soft on the beat, strong off it. doo-VAH.', demo: [{ abc: LINE, bpm: 112, ride: true, swing: true }, { abc: LINE, bpm: 112, ride: true, swing: true, accent: true }] },
+      { say: 'Your turn, offbeats louder.', do: { timed: LINE, bpm: 96, need: { swing: 0.6, accent: 0.6 } } },
+      { say: 'Coordination Exercise 1, part 1: three notes per beat, weight on the third. You’ll play it next.', demo: { abc: '(3CCD (3EEF (3GGA (3BBc | (3ccB (3AAG (3FFE (3DDC |]', bpm: 84 } },
+      { say: 'The dominant 7th: a major triad plus the note a whole step below the root. C7.', demo: { keys: [60, 64, 67, 70] }, do: { chord: ['C', '7'] } },
+      { say: 'Cmaj7 to C7: only B moves, down to B♭. Play both.', demo: { chords: [['C', 'maj7'], ['C', '7']], start: [60, 64, 67, 71] }, do: { chain: [['C', 'maj7'], ['C', '7']], hints: 2, start: [60, 64, 67, 71] } },
+      { say: 'G7.', do: { chord: ['G', '7'] } },
+      { say: 'B♭7.', do: { chord: ['Bb', '7'] } },
+      { say: 'E7.', do: { chord: ['E', '7'] } },
     ],
   },
 
   'u1-minor': {
-    title: 'Minor sevenths and phrasing a swing line',
-    blocks: [
-      { h: 'The minor seventh' },
-      { p: 'The third chord type is a **minor triad plus the note a whole step below the root**. It’s written **Cm7**, **C–7**, **Cmi7** or **Cmin7**. It sounds soft, warm and slightly dark.' },
-      { keys: [60, 63, 67, 70], label: 'Cm7 = C E♭ G B♭' },
-      { table: { head: ['Chord', 'Triad', 'Seventh', 'On C'], rows: [
-        ['maj7', 'major', 'half step below the root', 'C E G B'],
-        ['7', 'major', 'whole step below the root', 'C E G B♭'],
-        ['m7', 'minor', 'whole step below the root', 'C E♭ G B♭'],
-      ] } },
-      { tip: 'From any dominant seventh, lower the 3rd by a half step and you have the minor seventh. C7 → Cm7 just means E → E♭.' },
-      { try: { chords: [['C', 'm7'], ['A', 'm7'], ['F#', 'm7'], ['Bb', 'm7']] } },
-      { h: 'Phrasing a swing line' },
-      { list: [
-        '**A phrase that starts on an offbeat starts with an accent:** the first note is a “VAH”.',
-        '**The last note of a phrase is often short,** especially when it lands on an offbeat. Clip it, like the end of a spoken word.',
-        '**Longer notes on the beat get a little less weight** than the eighths around them, so the line keeps leaning forward.',
-        '**Breathe.** Leave space between phrases, the way a horn player has to.',
-      ] },
-      { abc: 'z G A G E D C D | E2 z2 z4 |]', swing: true, accent: true, bpm: 112, ride: true, caption: 'A phrase that starts on the “and” of 1: accent the first note and clip the last.' },
-      { p: 'Today’s swing check is **Swing Exercises C and D**. C starts after long rests (count them in triplets so you come in swinging). D has notes tied over the bar line: they arrive an eighth early, an **anticipation**. Accent them and hold them.' },
-      { abc: 'C E G A c B A G- | G2 E2 z4 |]', swing: true, accent: true, bpm: 112, ride: true, caption: 'An anticipation: the G belongs to bar 2 but is played on the last offbeat of bar 1.' },
+    title: 'Minor sevenths and phrasing',
+    steps: [
+      { say: 'Minor 7th: a minor triad plus the note a whole step below the root. Cm7.', demo: { keys: [60, 63, 67, 70] }, do: { chord: ['C', 'm7'] } },
+      { say: 'C7 to Cm7: only the 3rd drops, E to E♭.', demo: { chords: [['C', '7'], ['C', 'm7']], start: [60, 64, 67, 70] }, do: { chain: [['C', '7'], ['C', 'm7']], hints: 2, start: [60, 64, 67, 70] } },
+      { say: 'Am7.', do: { chord: ['A', 'm7'] } },
+      { say: 'F♯m7.', do: { chord: ['F#', 'm7'] } },
+      { say: 'B♭m7.', do: { chord: ['Bb', 'm7'] } },
+      { say: 'A phrase starting on the “and”: accent the first note, clip the last.', demo: { abc: 'z G A G E D C D | E2 z2 z4 |]', swing: true, accent: true, bpm: 112, ride: true } },
+      { say: 'Your turn.', do: { timed: 'z G A G E D C D | E2 z2 z4 |]', bpm: 100, need: { swing: 0.6 } } },
+      { say: 'An anticipation: the last offbeat of the bar ties over into the next.', demo: { abc: 'C E G A c B A G- | G2 E2 z4 |]', swing: true, accent: true, bpm: 112, ride: true } },
+      { say: 'Your turn.', do: { timed: 'C E G A c B A G- | G2 E2 z4 |]', bpm: 100, need: { swing: 0.6 } } },
     ],
   },
 
   'u1-inversions': {
     title: 'The closest inversion, without counting from the root',
-    blocks: [
-      { abc: '"Dm7" [DFAc]4 "G7" [DFGB]4 | "Cmaj7" [CEGB]8 | "Gm7" [DFG_B]4 "C7" [CEG_B]4 | "Fmaj7" [CEFA]8 |]', bpm: 80, caption: 'Watch the keys: ii–V–I in C, then in F. The hand hardly moves.' },
-      { p: 'Building every chord up from its root is how most people start, and it’s fine for finding a chord out of nowhere. But in a progression the last chord is already under your hand, so **you don’t need the root at all**. Look at your fingers instead:' },
-      { list: [
-        '**Which of these notes are in the new chord? Keep them**, exactly where they are.',
-        '**Slide the others** to the nearest note of the new chord: almost always a half or whole step.',
-      ] },
-      { p: 'It turns into feel through a few moves that repeat everywhere in jazz. Learn these as movements of the hand, not as inversions:' },
-      { h: 'ii–V–I: two notes stay, two step down' },
-      { p: 'In a ii–V–I, **every change keeps two notes and moves the other two down a step**. That’s true in every key and from either starting position.' },
-      { abc: '"Dm7" [DFAc]4 "G7" [DFGB]4 | "Cmaj7" [CEGB]8 |]', bpm: 76, caption: 'Starting with the ii chord’s root at the bottom: D and F stay, A and C step down; then G and B stay, D and F step down.' },
-      { abc: '"Dm7" [A,CDF]4 "G7" [G,B,DF]4 | "Cmaj7" [G,B,CE]8 |]', bpm: 76, caption: 'Starting with its 5th at the bottom: A and C step down, D and F stay; then G and B stay, D and F step down. Same moves, other hand shape.' },
-      { h: 'Dominants around the circle: one stays, three slide down' },
-      { abc: '"C7" [CEG_B]4 "F7" [C_EFA]4 | "Bb7" [_B,DF_A]4 "Eb7" [_B,_D_EG]4 | "Ab7" [_A,C_E_G]8 |]', bpm: 80, caption: 'C7, F7, B♭7, E♭7, A♭7: each time one note stays and the other three slide down a half or whole step.' },
-      { tip: 'In the closest-inversion drill the notes you can keep light up green and the notes to move to light up faintly. As you get changes right the hints fade, first the targets, then the green, until you don’t need them.' },
-      { p: 'Try it: play Dm7 anywhere, then G7 and Cmaj7 with two notes staying each time.' },
-      { try: { chords: [['D', 'm7'], ['G', '7'], ['C', 'maj7']] } },
+    steps: [
+      { say: 'ii–V–I in C. Watch: the hand hardly moves.', demo: { chords: [['D', 'm7'], ['G', '7'], ['C', 'maj7']], start: [62, 65, 69, 72] } },
+      { say: 'Each change keeps two notes and steps two down. Your turn: green keys stay.', do: { chain: [['D', 'm7'], ['G', '7'], ['C', 'maj7']], hints: 2, start: [62, 65, 69, 72] } },
+      { say: 'The other shape: Dm7 with A at the bottom. Same moves.', demo: { chords: [['D', 'm7'], ['G', '7'], ['C', 'maj7']], start: [57, 60, 62, 65] }, do: { chain: [['D', 'm7'], ['G', '7'], ['C', 'maj7']], hints: 2, start: [57, 60, 62, 65] } },
+      { say: 'In F: Gm7, C7, Fmaj7. Only the keys to keep light up now.', do: { chain: [['G', 'm7'], ['C', '7'], ['F', 'maj7']], hints: 1 } },
+      { say: 'In B♭, no hints: Cm7, F7, B♭maj7.', do: { chain: [['C', 'm7'], ['F', '7'], ['Bb', 'maj7']], hints: 0 } },
+      { say: 'Dominants around the circle: one note stays, three slide down.', demo: { chords: [['C', '7'], ['F', '7'], ['Bb', '7'], ['Eb', '7']], start: [60, 64, 67, 70] } },
+      { say: 'Your turn: C7, F7, B♭7, E♭7, A♭7.', do: { chain: [['C', '7'], ['F', '7'], ['Bb', '7'], ['Eb', '7'], ['Ab', '7']], hints: 1, start: [60, 64, 67, 70] } },
     ],
   },
 
   'u1-spelling': {
     title: 'Spelling chords and the circle of fourths',
-    blocks: [
-      { h: 'Every other letter' },
-      { p: 'A seventh chord always uses every other **letter name**: root, 3rd, 5th, 7th. C chords use C E G B. D chords use D F A C. F♯ chords use F♯ A♯ C♯ E♯. The accidentals change with the chord type, but the letters never do.' },
-      { p: 'That’s why F♯maj7 contains **E♯**, not F: F isn’t one of its letters. It’s the same key on the piano, but the name tells you (and anyone reading your chart) what the note is doing in the chord.' },
-      { table: { head: ['Chord', 'Spelling', 'Watch out for'], rows: [
-        ['F♯maj7', 'F♯ A♯ C♯ E♯', 'E♯ (the white key F)'],
-        ['D♭7', 'D♭ F A♭ C♭', 'C♭ (the white key B)'],
-        ['E♭m7', 'E♭ G♭ B♭ D♭', 'G♭, not F♯'],
-        ['Bmaj7', 'B D♯ F♯ A♯', 'four sharps'],
-        ['G♯m7', 'G♯ B D♯ F♯', 'B and F♯, plain letters'],
-      ] } },
-      { p: 'Black-key roots are usually named whichever way is simpler to spell. Major and dominant chords favour flats (D♭maj7, A♭7), except F♯. Minor chords often use sharps (C♯m7, G♯m7), because D♭ minor would need an F♭.' },
-      { tip: 'In the spelling drill, type b for ♭ and # for ♯. Letters must be in order: root, 3rd, 5th, 7th.' },
-      { h: 'The circle of fourths' },
-      { p: 'Jazz musicians practise keys around the **circle of fourths**: C F B♭ E♭ A♭ D♭ G♭ B E A D G. Each key is a fourth above the last. That’s the direction chords most often move in jazz: G7 resolves to C, C7 to F, F7 to B♭. Practising in this order trains exactly the moves you’ll use in tunes.' },
-      { abc: '"G7" [FGBd]8 | "Cmaj7" [EGBc]8 | "C7" [EG_Bc]8 | "Fmaj7" [EFAc]8 |]', bpm: 90, caption: 'Each dominant chord resolving up a fourth.' },
-      { tip: 'Coordination Exercise 1 and the key-by-key drills follow this order too.' },
+    steps: [
+      { say: 'Chords use every other letter, so F♯maj7 is F♯ A♯ C♯ E♯. E♯ is the white key F.', demo: { keys: [66, 70, 73, 77] }, do: { chord: ['F#', 'maj7'] } },
+      { say: 'D♭7 is D♭ F A♭ C♭. C♭ is the white key B.', demo: { keys: [61, 65, 68, 71] }, do: { chord: ['Db', '7'] } },
+      { say: 'E♭m7: E♭ G♭ B♭ D♭.', do: { chord: ['Eb', 'm7'] } },
+      { say: 'Bmaj7: B D♯ F♯ A♯.', do: { chord: ['B', 'maj7'] } },
+      { say: 'G♯m7: G♯ B D♯ F♯.', do: { chord: ['G#', 'm7'] } },
+      { say: 'Chords love to move up a fourth, so jazz practises keys around the circle of fourths. Listen.', demo: { chords: [['G', '7'], ['C', 'maj7'], ['C', '7'], ['F', 'maj7']], start: [65, 67, 71, 74] } },
+      { say: 'Your turn, closest voicings.', do: { chain: [['G', '7'], ['C', 'maj7'], ['C', '7'], ['F', 'maj7']], hints: 1, start: [65, 67, 71, 74] } },
     ],
   },
 
   'u1-vamp': {
-    title: 'Comping, vamps and moving as little as possible',
-    blocks: [
-      { h: 'Comping' },
-      { p: '**Comping** (short for accompanying) is what a jazz pianist does most of the time on a gig: playing the chords in rhythm behind a soloist. It’s a conversation, not a wall of sound. Think short, rhythmic chords with space between them.' },
-      { h: 'Vamps' },
-      { p: 'A **vamp** is a short chord progression that repeats. In today’s vamp drill four chords loop over bass and drums, and you play each one as it comes around. Each chord starts at two bars and shrinks over the week to a single beat.' },
-      { h: 'Move as little as possible' },
-      { p: 'You don’t have to play chords in root position. Pick inversions that keep your hand in one place: **hold the notes two chords share and move the others to the nearest new note.** This is **voice leading**, and it’s the key to finding chords quickly and to a smooth sound.' },
-      { abc: '"Cmaj7" [EGBc]8 | "Am7" [EGAc]8 | "Dm7" [FAcd]8 | "G7" [FGBd]8 |]', bpm: 90, caption: 'Cmaj7 – Am7 – Dm7 – G7 in close position. Each change moves only one or two notes, by a step.' },
-      { p: 'Compare that with jumping to root position every time: the hand has to leap, and the sound lurches.' },
-      { abc: '"Cmaj7" [CEGB]8 | "Am7" [A,CEG]8 | "Dm7" [DFAc]8 | "G7" [G,B,DF]8 |]', bpm: 90, caption: 'The same chords in root position: more movement, less connection.' },
-      { h: 'Where to put the chord' },
-      { p: 'Start by playing each chord right on beat 1. When that feels easy, come in an eighth note early, on the “and” of 4 in the bar before. That **anticipation** is one of the most common comping rhythms in jazz.' },
-      { abc: '"Cmaj7" [EGBc]2 z5 "Am7" [EGAc]- | [EGAc]2 z5 "Dm7" [FAcd]- | [FAcd]2 z5 "G7" [FGBd]- | [FGBd]2 z6 |]', swing: true, bpm: 100, ride: true, caption: 'Each new chord anticipated: struck on the last offbeat of the bar before.' },
-      { tip: 'In the vamp drill, tick “Show notes” only if you’re stuck. The vamp counts a chord as made if you’re holding exactly its four notes at some point during its bars.' },
+    title: 'Comping a vamp',
+    steps: [
+      { say: 'Comping: short chords behind a soloist. Four chords, each moving as little as possible.', demo: { chords: [['C', 'maj7'], ['A', 'm7'], ['D', 'm7'], ['G', '7']], start: [64, 67, 71, 72] } },
+      { say: 'Your turn: Cmaj7, Am7, Dm7, G7.', do: { chain: [['C', 'maj7'], ['A', 'm7'], ['D', 'm7'], ['G', '7']], hints: 1, start: [64, 67, 71, 72] } },
+      { say: 'For comparison, root position every time: hear the jumps.', demo: { chords: [['C', 'maj7'], ['A', 'm7'], ['D', 'm7'], ['G', '7']], root: true } },
+      { say: 'Anticipation: each chord arrives on the “and” of 4, just before its bar.', demo: { abc: '"Cmaj7" [EGBc]2 z5 "Am7" [EGAc]- | [EGAc]2 z5 "Dm7" [FAcd]- | [FAcd]2 z5 "G7" [FGBd]- | [FGBd]2 z6 |]', swing: true, bpm: 100, ride: true } },
+      { say: 'Your turn: play along.', do: { timed: '"Cmaj7" [EGBc]2 z5 "Am7" [EGAc]- | [EGAc]2 z5 "Dm7" [FAcd]- | [FAcd]2 z5 "G7" [FGBd]- | [FGBd]2 z6 |]', bpm: 92, need: {} } },
     ],
   },
 
   'u1-form': {
-    title: 'Song form and the 12-bar blues',
-    blocks: [
-      { h: 'How a jazz performance is built' },
-      { list: [
-        '**The head:** the band plays the tune’s melody, usually once or twice through.',
-        '**Solos:** each soloist improvises over the tune’s chord progression, which keeps repeating. One time through the progression is a **chorus**.',
-        '**The head out:** the melody again to finish. Before it there may be **trading fours**: soloists alternate four-bar phrases with the drummer.',
-      ] },
-      { p: 'Nobody counts out loud, but everyone always knows where they are in the form. That’s the skill you’re building when you follow a track bar by bar.' },
-      { h: 'The 12-bar blues' },
-      { p: 'The most common form in jazz: three phrases of four bars. Here’s a basic blues in B♭:' },
-      { table: { head: ['', '1', '2', '3', '4'], rows: [
-        ['Bars 1–4', 'B♭7', 'E♭7', 'B♭7', 'B♭7'],
-        ['Bars 5–8', 'E♭7', 'E♭7', 'B♭7', 'B♭7'],
-        ['Bars 9–12', 'F7', 'E♭7', 'B♭7', 'F7'],
-      ] } },
-      { list: [
-        '**Bar 5** moves to the IV chord (E♭7). It’s the clearest signpost that a chorus is halfway through its first third. Listen for that lift every time.',
-        '**Bars 9–10** bring in the V chord (F7), the most tension in the form.',
-        '**Bars 11–12** are the **turnaround**, which steers back to the top for the next chorus.',
-      ] },
-      { p: 'Notice every chord is a dominant seventh. That’s typical of the blues, where the “restless” 7 chord sounds at home.' },
-      { abc: '"Bb7" [DF_A_B]8 | "Eb7" [_D_EG_B]8 | "Bb7" [DF_A_B]8 | "Bb7" [DF_A_B]8 |]', bpm: 120, ride: true, caption: 'The first four bars, with close voicings that barely move.' },
-      { h: 'Freddie Freeloader' },
-      { p: 'The tune you’re listening to this week is a B♭ blues with its own twist. Bar 2 stays on B♭7, and the last four bars go **F7 – E♭7 – A♭7 – A♭7**. That A♭7 is the tune’s signature sound.' },
-      { tip: 'In the listening drill, watch for bar 5 every chorus. Soon you’ll feel it coming before it arrives.' },
+    title: 'The 12-bar blues',
+    steps: [
+      { say: 'The 12-bar blues in B♭: three phrases of four bars. Count the bars as it plays.', demo: { abc: '"Bb7" [DF_A_B]8 | "Eb7" [_D_EG_B]8 | "Bb7" [DF_A_B]8 | "Bb7" [DF_A_B]8 | "Eb7" [_D_EG_B]8 | "Eb7" [_D_EG_B]8 | "Bb7" [DF_A_B]8 | "Bb7" [DF_A_B]8 | "F7" [_EFAc]8 | "Eb7" [_EG_B_d]8 | "Bb7" [F_A_Bd]8 | "F7" [FAc_e]8 |]', bpm: 120, ride: true, swing: true } },
+      { say: 'Your turn: the changes, closest voicings.', do: { chain: [['Bb', '7'], ['Eb', '7'], ['Bb', '7'], ['Eb', '7'], ['Bb', '7'], ['F', '7'], ['Eb', '7'], ['Bb', '7'], ['F', '7']], hints: 1, start: [62, 65, 68, 70] }, more: 'Bars 1–4 B♭7 E♭7 B♭7 B♭7, bars 5–8 E♭7 E♭7 B♭7 B♭7, bars 9–12 F7 E♭7 B♭7 F7.' },
+      { say: '“Freddie Freeloader” ends each chorus its own way: F7, E♭7, A♭7.', demo: { chords: [['F', '7'], ['Eb', '7'], ['Ab', '7']], start: [60, 63, 65, 69] }, do: { chain: [['F', '7'], ['Eb', '7'], ['Ab', '7']], hints: 1, start: [60, 63, 65, 69] } },
     ],
   },
 
   'u1-listening': {
-    title: 'Listening like a pianist',
-    blocks: [
-      { h: 'Kind of Blue' },
-      { p: '“Freddie Freeloader” comes from Miles Davis’s *Kind of Blue* (1959), the best-selling jazz album of all time and a near-perfect record to learn to listen with. On this one track **Wynton Kelly** plays piano instead of Bill Evans, who plays on the rest of the album. Davis wanted Kelly’s bluesier, harder-swinging touch for a blues.' },
-      { h: 'Five things to listen for' },
-      { list: [
-        '**The ride cymbal** (Jimmy Cobb): the “ding, ding-a, ding, ding-a” pattern is the heartbeat of swing. The “-a” is the swung offbeat, exactly where your offbeats should land.',
-        '**The bass** (Paul Chambers): walking quarter notes, one per beat, outlining each chord. If you lose your place in the form, follow the bass.',
-        '**The piano comping:** Kelly plays short, crisp chords, often off the beat, and sometimes stops altogether. Compare how much he plays behind each horn.',
-        '**Three soloists, three approaches:** Davis plays few notes with lots of space. Coltrane plays dense, fast runs. Cannonball Adderley is bluesy and bubbly. Same 12 bars every time.',
-        '**Kelly’s own solo** opens the solos: single-note right-hand lines with left-hand chords stabbing underneath. That’s a model for where this course is heading.',
-      ] },
-      { h: 'How to listen' },
-      { list: [
-        'Pick **one** thing per listen: the bass one time, the comping the next.',
-        'Sing along with a phrase you like, then try to find it on the piano.',
-        'Listen for how each soloist **starts and ends** phrases, and how much space they leave.',
-      ] },
-      { tip: 'Today ends with the form quiz. You need 4 out of 5 to pass the listening gate.' },
+    title: 'Hearing the band',
+    steps: [
+      { say: 'The ride cymbal: ding, ding-a, ding, ding-a. Listen for the “a”.', demo: { abc: 'z8 | z8 |]', ride: true, bpm: 120 } },
+      { say: 'Tap the “a” on any key: just after beats 2 and 4.', do: { timed: 'z2 z c z2 z c | z2 z c z2 z c |]', bpm: 108, ride: true, anyPitch: true, need: {} } },
+      { say: 'Comping like Wynton Kelly: short chords, often just off the beat.', demo: { abc: '"Bb7" z [DF_A_B] z2 z [DF_A_B] z2 | "Eb7" z [_D_EG_B] z2 z [_D_EG_B] z2 |]', swing: true, bpm: 120, ride: true } },
+      { say: 'Your turn: two short stabs a bar, on the offbeats.', do: { timed: '"Bb7" z [DF_A_B] z2 z [DF_A_B] z2 | "Eb7" z [_D_EG_B] z2 z [_D_EG_B] z2 |]', bpm: 108, ride: true, need: {} } },
     ],
   },
 
   'u1-review': {
-    title: 'Unit 1 on one page',
-    blocks: [
-      { h: 'Swing' },
-      { list: ['Eighths are long-short on a triplet grid: offbeats at about 67% of the beat.', 'Lean on the offbeat: “doo-VAH”.', 'Legato. Clip the last note of a phrase. Accent a phrase that starts on an offbeat.'] },
-      { h: 'Seventh chords' },
-      { table: { head: ['Chord', 'Build it', 'On C'], rows: [
-        ['maj7 (Δ, M7)', 'major triad + half step below the root', 'C E G B'],
-        ['7', 'major triad + whole step below the root', 'C E G B♭'],
-        ['m7 (–7, mi7)', 'minor triad + whole step below the root', 'C E♭ G B♭'],
-      ] } },
-      { list: ['Spell with every other letter name: F♯maj7 = F♯ A♯ C♯ E♯.', 'Practise keys around the circle of fourths: C F B♭ E♭ A♭ D♭ G♭ B E A D G.', 'Comp with close inversions that move as little as possible.'] },
-      { h: 'Improvising and listening' },
-      { list: ['Over a drone: few notes, real phrases with a beginning and an end, varied rhythms, space.', 'Head, solos (choruses), head. Know where you are in the form.', '12-bar blues landmarks: bar 5 (IV), bars 9–10 (V), bars 11–12 (turnaround).'] },
-      { tip: 'Today is the Unit 1 check: the timed chord test, Coordination Exercise 1 in the keys you haven’t passed, a swing check and the listening quiz. Whatever isn’t passed yet becomes tomorrow’s catch-up day.' },
+    title: 'Unit 1 check-in',
+    steps: [
+      { say: 'Swing: long-short, offbeats leaning.', do: { timed: 'C D E G A G E D | C2 z2 z4 |]', bpm: 108, need: { swing: 0.6, accent: 0.6 } } },
+      { say: 'F♯maj7.', do: { chord: ['F#', 'maj7'] } },
+      { say: 'B♭7.', do: { chord: ['Bb', '7'] } },
+      { say: 'E♭m7.', do: { chord: ['Eb', 'm7'] } },
+      { say: 'ii–V–I in E♭, no hints: Fm7, B♭7, E♭maj7.', do: { chain: [['F', 'm7'], ['Bb', '7'], ['Eb', 'maj7']], hints: 0 } },
     ],
   },
 };

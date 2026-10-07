@@ -111,7 +111,6 @@ export const swing = {
     function draw() {
       const running = take && take.running;
       const E = SWING_EXERCISES[ex];
-      const seen = !E || demoed.has(ex);
       const hist = (P.swing || []).slice(-5).reverse();
       const a = result && result.analysis;
       const left = UP_AFTER - (E ? lad().streak : 0);
@@ -126,9 +125,8 @@ export const swing = {
           : html`<p class="pat-short">Play any eighth-note line in your right hand for ${FREE_BARS} bars: a scale, an idea from the drone, a phrase from a record.</p>`}
           ${ruler()}
           <div class="row">
-            ${seen || running
-              ? html`<button class="btn primary" data-a="go" ${demoing ? 'disabled' : ''}>${running ? 'Stop' : 'Start'} <kbd>Space</kbd></button>${E ? html`<button class="btn" data-a="listen" ${running || demoing ? 'disabled' : ''}>▶ Show me again</button>` : ''}`
-              : html`<button class="btn primary" data-a="listen" ${demoing ? 'disabled' : ''}>▶ Show me first</button><button class="btn" data-a="go">Start <kbd>Space</kbd></button>`}
+            ${running ? html`<button class="btn" data-a="go">Stop</button>` : html`<b class="g-turn">${demoing ? 'Watch…' : 'Play any key to start'}</b>`}
+            ${E ? html`<button class="btn ghost small" data-a="listen" ${running || demoing ? 'disabled' : ''}>↻ Show me again</button>` : ''}
             <span class="tempo" title="Your level for this exercise. It goes up by itself after ${UP_AFTER} clean takes in a row."><button class="btn ghost" data-t="-${STEP}" ${running ? 'disabled' : ''}>−</button><b>♩ = ${bpm}</b><button class="btn ghost" data-t="${STEP}" ${running ? 'disabled' : ''}>+</button></span>
             <span class="count muted">${demoing ? 'Watch and listen…' : ''}</span>
           </div>
@@ -142,7 +140,7 @@ export const swing = {
           ${hist.length ? html`<p class="muted small">Recent: ${hist.map((h, k) => html`${k ? ' · ' : ''}${h.passed ? '✓' : '✗'} ${h.ex && h.ex !== 'free' ? `${h.ex} ` : ''}${Math.round(h.placement * 100)}% at ♩ ${h.bpm}`)}</p>` : ''}
         </div>`);
       const host = el.querySelector('.swing-abc'); if (host && E) drawAbc(host, E.abc);
-      el.querySelector('[data-a=go]').onclick = start;
+      const go = el.querySelector('[data-a=go]'); if (go) go.onclick = start;
       const li = el.querySelector('[data-a=listen]'); if (li) li.onclick = demo;
       el.querySelectorAll('[data-t]').forEach(b => { b.onclick = () => { bpm = Math.max(60, Math.min(220, bpm + +b.dataset.t)); if (ex !== 'free') lad().set(bpm); levelMsg = ''; draw(); }; });
       el.querySelectorAll('[data-ex]').forEach(b => { b.onclick = () => { ex = b.dataset.ex; result = null; notes = []; levelMsg = ''; if (ex !== 'free') bpm = lad().bpm; draw(); if (!demoed.has(ex) && SWING_EXERCISES[ex]) setTimeout(demo, 300); }; });
@@ -151,6 +149,7 @@ export const swing = {
     if (SWING_EXERCISES[ex] && !demoed.has(ex)) setTimeout(() => { if (!take) demo(); }, 600);
     return {
       noteOn(m, vel, t) {
+        if (!take && !demoing) { start(); return; } // play any key to start (that key only starts it)
         if (!take || !take.running || m < split) return;
         const n = { midi: m, vel, t: take.secAt(t), off: null };
         if (n.t < -0.3) return;
@@ -167,6 +166,7 @@ export const swing = {
       noteOff(m, t) { const n = open.get(m); if (n && take) { n.off = take.secAt(t); open.delete(m); } },
       onSpace() { start(); },
       get take() { return take; }, // for debugging
+      busy: () => !!(take && take.running) || demoing,
       destroy() { stopPlayback(); if (take) { take.onEnd = null; take.stop(); } },
     };
   },
